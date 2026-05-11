@@ -1,2 +1,2 @@
 # solana-voting-anchor-vs-native
-some dummy stuff fr
+I wrote this for educational purposes. WIP!
