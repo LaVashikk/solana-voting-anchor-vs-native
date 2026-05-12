@@ -1,14 +1,13 @@
-use crate::sdk::utils;
+use crate::sdk::pod_types::string::FixedString;
 use bytemuck::{Pod, Zeroable};
-use solana_program::{account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, program::invoke, program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar};
 
-use crate::{constants::{MAX_DESC_LEN, MAX_TITLE_LEN}, sdk::{AccountInfoExt, InstructionArgs}, state::pull::Pull};
+use crate::{constants::{MAX_DESC_LEN, MAX_TITLE_LEN}, sdk::InstructionArgs};
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
 pub struct CreatePullArgs {
-    pub(crate) title: [u8; MAX_TITLE_LEN],
-    pub(crate) description: [u8; MAX_DESC_LEN],
+    pub(crate) title: FixedString<MAX_TITLE_LEN>,
+    pub(crate) description: FixedString<MAX_DESC_LEN>,
     pub(crate) voting_start: i64,
     pub(crate) voting_end: i64,
     pub(crate) vote_price: u64,
@@ -18,16 +17,10 @@ impl InstructionArgs for CreatePullArgs {}
 
 impl CreatePullArgs {
     #[cfg(not(target_os = "solana"))]
-    pub fn new(title: &str, description: &str, voting_start: i64, voting_end: i64, vote_price: u64) -> Result<Self, ()> {
-        let title = utils::string_to_bytes::<MAX_TITLE_LEN>(title)
-            .ok_or(())?;  // todo! anyhow? thiserror?
-
-        let description = utils::string_to_bytes::<MAX_DESC_LEN>(description)
-            .ok_or(())?;  // todo! anyhow? thiserror?
-
+    pub fn new(title: &str, description: &str, voting_start: i64, voting_end: i64, vote_price: u64) -> anyhow::Result<Self> {
         Ok(Self {
-            title,
-            description,
+            title: FixedString::try_new(title)?,
+            description: FixedString::try_new(description)?,
             voting_start,
             voting_end,
             vote_price,

@@ -1,9 +1,35 @@
-use std::{cell::{Ref, RefMut}, mem};
-
+use std::cell::{Ref, RefMut};
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use bytemuck::{AnyBitPattern, Pod};
-use solana_program::msg;
 use solana_system_interface::program::ID as SYSTEM_PROGRAM_ID;
+
+pub mod pod_types;
+pub mod error;
+
+// TODO:
+// Idea for implementing Borsh support:
+// 1. feature-flag
+// 2. Wrapper type! Like ProgramAccount. Something like BorshAccount, for example
+// 3. Unlike Anchor, DO NOT STORE the deserialized T!
+//      BorshAccount implements deref to info, as well as get / get_mut methods. Each call deserializes AGANE. Although a cache could be added, it's overengineering imo
+// 4. get_mut returns not just data, but ANOTHER wrapper, like BorshMutData, which implements drop. Drop serializes data back... nahhh, drop is kidna bad design! `save`? `commit`? oh, or maybe use closure?!
+// Overall - that's probably it?
+//
+// TODO: study BORSH specifics. What makes it so special, why is it better than, say, bincode? we could cleverly record struct offsets, for example:
+// implement a zero-cost method that takes a str (for example) and uses a match like:
+// ```
+//      // simply numbering the order of the structure fields. a derive macro can do this automatically
+// .. fn get_order(field_name: &str) -> usize {
+//      match field_name {
+//          "manually writing the name":  1,
+//          "field 2":  2,
+//      }
+// }
+// ```
+// Then the serializer will write RAW usizes in the first bytes! For example, we can allocate 8 bytes (idk why so many) for the offset, and then we get get_order * 8, which contains info on where the data starts and ends in bytes, and we deserialize precisely
+// yeah, good luck to me "deserializing precisely", but some workarounds can be invented lol. This doesn't seem to exist in borsh/anchor (upd. anchor already has such a "workaround" - LazyAccount. they beat me to it. and I'm scared to study that code)
+// ~~oh god, I just need to find a job, ahah ;p~~
+
 
 #[cfg(not(target_os = "solana"))]
 pub mod off_chain;

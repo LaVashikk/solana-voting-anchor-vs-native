@@ -14,7 +14,6 @@ pub const VOTE_IX: u8 = 8;
 pub mod entrypoint {
     use crate::*;
     use solana_program::entrypoint;
-    use solana_program::msg;
     use solana_program::{
         account_info::AccountInfo,
         program_error::ProgramError,

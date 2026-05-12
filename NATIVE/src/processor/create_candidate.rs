@@ -1,11 +1,8 @@
-use bytemuck::{Pod, Zeroable};
 use solana_program::{account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, program_error::ProgramError};
-use solana_program::msg;
 use solana_program::pubkey::Pubkey;
-use solana_system_interface::instruction;
 
-use crate::{constants::MAX_CANDIDATE_NAME_LEN, instructions::create_candidate::CreateCandidateArgs, sdk::InstructionArgs, state::{candidate::Candidate, pull::Pull}};
-use crate::sdk::{AccountInfoExt, AccountState, system_program::SystemCpiExt};
+use crate::{instructions::create_candidate::CreateCandidateArgs, sdk::InstructionArgs, state::{candidate::Candidate, pull::Pull}};
+use crate::sdk::{AccountInfoExt, system_program::SystemCpiExt};
 
 /// Context for creating new candidate
 /// Just like in Anchor, but handcrafted :p
@@ -37,7 +34,6 @@ pub fn create_candidate<'a>(program_id: &Pubkey, accounts: &'a[AccountInfo<'a>],
     let mut candidate_data = ctx.candidate.load_mut::<Candidate>()?;
     candidate_data.pull = *ctx.pull.key;
     candidate_data.name = args.name;
-    candidate_data.name_len = args.name.iter().position(|&b| b == 0).unwrap_or(MAX_CANDIDATE_NAME_LEN);
 
     let mut pull_data = ctx.pull.load_mut::<Pull>()?;
     pull_data.candidate_count = pull_data.candidate_count.saturating_add(1);

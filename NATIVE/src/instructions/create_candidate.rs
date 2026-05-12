@@ -1,23 +1,19 @@
 use bytemuck::{Pod, Zeroable};
-use crate::sdk::utils;
-use crate::{constants::MAX_CANDIDATE_NAME_LEN, sdk::{AccountInfoExt, InstructionArgs}, state::pull::Pull};
+use crate::sdk::pod_types::string::FixedString;
+use crate::{constants::MAX_CANDIDATE_NAME_LEN, sdk::InstructionArgs};
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
 pub struct CreateCandidateArgs {
-    pub(crate) name: [u8; MAX_CANDIDATE_NAME_LEN],
+    pub(crate) name: FixedString<MAX_CANDIDATE_NAME_LEN>,
 }
 
 impl InstructionArgs for CreateCandidateArgs {}
-
 impl CreateCandidateArgs {
     #[cfg(not(target_os = "solana"))]
-    pub fn new(name: &str) -> Result<Self, ()> {
-        let name = utils::string_to_bytes::<MAX_CANDIDATE_NAME_LEN>(name)
-            .ok_or(())?;  // todo! anyhow? thiserror?
-
+    pub fn new(name: &str) -> anyhow::Result<Self> {
         Ok(Self {
-            name
+            name: FixedString::try_new(name)?
         })
     }
 }

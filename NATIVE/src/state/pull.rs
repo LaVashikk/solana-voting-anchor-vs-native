@@ -1,18 +1,15 @@
-use std::str::Utf8Error;
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
-use crate::{constants::{MAX_DESC_LEN, MAX_TITLE_LEN}, sdk::{AccountState, Discriminator}};
+use crate::{constants::{MAX_DESC_LEN, MAX_TITLE_LEN}, sdk::{Discriminator, pod_types::string::FixedString}};
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
 pub struct Pull {
     pub creator: Pubkey,
 
-    pub title: [u8; MAX_TITLE_LEN],
-    pub title_len: usize,
-    pub description: [u8; MAX_DESC_LEN],
-    pub desc_len: usize,
+    pub title: FixedString<MAX_TITLE_LEN>,
+    pub description: FixedString<MAX_DESC_LEN>,
 
     pub voting_start: i64,
     pub voting_end: i64,
@@ -30,16 +27,6 @@ impl Discriminator for Pull {
 }
 
 impl Pull {
-    pub fn get_title(&self) -> Result<&str, Utf8Error> {
-        let len = (self.title_len).min(MAX_TITLE_LEN);
-        std::str::from_utf8(&self.title[..len])
-    }
-
-    pub fn get_description(&self) -> Result<&str, Utf8Error> {
-        let len = (self.desc_len).min(MAX_DESC_LEN);
-        std::str::from_utf8(&self.description[..len])
-    }
-
     pub fn get_last_candidate(&self) -> Option<&Pubkey> {
         if self.last_candidate != Pubkey::default() {
             return Some(&self.last_candidate)

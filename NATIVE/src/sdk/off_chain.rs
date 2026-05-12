@@ -1,4 +1,3 @@
-
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -21,17 +20,12 @@ impl IntoAccountMeta for Pubkey {
 }
 
 pub trait ClientInstruction: Pod {
-    // Структура, которая строго описывает, какие аккаунты нужны
     type Accounts;
-
-    // Тот самый 1 байт из роутера
     const IX_TAG: u8;
 
-    // Юзер реализует ТОЛЬКО маппинг аккаунтов
     fn accounts_to_metas(accounts: &Self::Accounts) -> Vec<AccountMeta>;
 
     // ----- inner methods -----
-
     fn to_bytes(&self) -> Vec<u8> {
         let mut data = vec![0u8; 8 + std::mem::size_of::<Self>()];
         data[0] = Self::IX_TAG;

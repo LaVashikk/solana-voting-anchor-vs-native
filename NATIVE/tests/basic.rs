@@ -1,4 +1,4 @@
-use native_voter_cheap::{sdk::AccountState, state::{candidate::Candidate, pull::Pull, voter::Voter}};
+use native_voter_cheap::{instructions::voting::VotingArgs, sdk::{AccountState, off_chain::ClientInstruction}, state::{candidate::Candidate, pull::Pull, voter::Voter}};
 use solana_sdk::{message::Message, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 mod common;
@@ -12,8 +12,8 @@ fn create_account_test() {
     let account = svm.get_account(&pull_pubkey).unwrap();
     let data = Pull::try_from_bytes(account.data.as_slice()).unwrap();
     assert_eq!(data.creator, user.pubkey());
-    assert_eq!(data.get_title().unwrap(), "Test Pull");
-    assert_eq!(data.get_description().unwrap(), "This is another test pull");
+    assert_eq!(data.title.as_str_lossy(), "Test Pull");
+    assert_eq!(data.description.as_str_lossy(), "This is another test pull");
 }
 
 
@@ -28,7 +28,7 @@ fn create_candidate_test() {
     let candidate_data = Candidate::try_from_bytes(candidate_account.data.as_slice()).unwrap();
 
     assert_eq!(candidate_data.pull, pull_key);
-    assert_eq!(candidate_data.get_name().unwrap(), "Candidate 1");
+    assert_eq!(candidate_data.name.as_str_lossy(), "Candidate 1");
     assert_eq!(candidate_data.number_of_votes, 0);
 
     let pull_account = svm.get_account(&pull_key).unwrap();
@@ -56,15 +56,15 @@ fn create_couple_candidaete_test() {
     assert_eq!(pull_data.candidate_count, 4);
 }
 
-// #[test]
-// #[should_panic]
-// fn create_candidate_from_hacker_test() {
-//     let hacker = Keypair::new();
+#[test]
+#[should_panic]
+fn create_candidate_from_hacker_test() {
+    let hacker = Keypair::new();
 
-//     let (mut svm, user) = init_svm_env("native_voter_cheap");
-//     let (pull_pda, _) = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", 0);
-//     let _ = create_candidate(&mut svm, &hacker, pull_pda.clone(), "Rust", 0); // not allowed!
-// }
+    let (mut svm, user) = init_svm_env("native_voter_cheap");
+    let pull = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", 0);
+    let _ = create_candidate(&mut svm, &hacker, pull.clone(), "Rust"); // not allowed!
+}
 
 #[test]
 fn voting_test() {
@@ -123,28 +123,36 @@ fn voting_test() {
 // }
 // // todo: check closing shit and balance
 
-// #[test]
-// fn double_voting_test() {
-//     let (mut svm, user) = init_svm_env("native_voter_cheap");
-//     set_svm_time(&mut svm, current_time() + 100);
+#[test]
+fn double_voting_test() {
+    let (mut svm, user) = init_svm_env("native_voter_cheap");
+    set_svm_time(&mut svm, current_time() + 100);
 
-//     let (pull, _) = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", 0);
-//     let (candidate, _) = create_candidate(&mut svm, &user, pull.clone(), "Rust", 0);
+    let pull = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", 0);
+    let candidate = create_candidate(&mut svm, &user, pull.clone(), "Rust");
 
-//     let (ix, _) = ix_voting(user.pubkey(), pull, candidate);
+    let (voter_pda, _) = Pubkey::find_program_address(&Voter::get_seeds(&pull, &user.pubkey()), &common::PROGRAM_ID);
+    let accounts = native_voter_cheap::instructions::voting::client::VotingAccounts {
+        voter: user.pubkey(),
+        pull,
+        candidate,
+        voter_pda,
+    };
 
-//     // First vote
-//     let msg = Message::new(&[ix], Some(&user.pubkey()));
-//     let tx = Transaction::new(&[&user], msg.clone(), svm.latest_blockhash());
-//     let result = svm.send_transaction(tx);
-//     assert!(result.is_ok());
+    let ix = VotingArgs.build_ix(common::PROGRAM_ID, accounts);
 
-//     // Should return error, because user already voted in this pull
-//     let tx = Transaction::new(&[&user], msg.clone(), svm.latest_blockhash());
-//     let result = svm.send_transaction(tx);
-//     assert!(result.is_err());
+    // First vote
+    let msg = Message::new(&[ix], Some(&user.pubkey()));
+    let tx = Transaction::new(&[&user], msg.clone(), svm.latest_blockhash());
+    let result = svm.send_transaction(tx);
+    assert!(result.is_ok());
 
-//     let candidate_account = svm.get_account(&candidate).unwrap();
-//     let candidate_data = native_voter_cheap::Candidate::try_deserialize(&mut candidate_account.data.as_slice()).unwrap();
-//     assert_eq!(candidate_data.number_of_votes, 1);
-// }
+    // Should return error, because user already voted in this pull
+    let tx = Transaction::new(&[&user], msg.clone(), svm.latest_blockhash());
+    let result = svm.send_transaction(tx);
+    assert!(result.is_err());
+
+    let candidate_account = svm.get_account(&candidate).unwrap();
+    let candidate_data = Candidate::try_from_bytes(&mut candidate_account.data.as_slice()).unwrap();
+    assert_eq!(candidate_data.number_of_votes, 1);
+}

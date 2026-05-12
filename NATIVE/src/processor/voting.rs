@@ -1,4 +1,4 @@
-use solana_program::{account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, program::invoke, program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar};
+use solana_program::{pubkey::Pubkey, account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, program_error::ProgramError, };
 use crate::{sdk::{AccountInfoExt, system_program::SystemCpiExt}, state::candidate::Candidate};
 use crate::state::voter::Voter;
 
@@ -38,7 +38,7 @@ impl<'a, 'info> VotingCtx<'a, 'info> {
 }
 
 
-pub fn voting<'a>(program_id: &Pubkey, accounts: &'a[AccountInfo<'a>], data: &[u8]) -> ProgramResult {
+pub fn voting<'a>(program_id: &Pubkey, accounts: &'a[AccountInfo<'a>], _data: &[u8]) -> ProgramResult {
     solana_program::msg!("ctx");
     let ctx = VotingCtx::parse(program_id, accounts)?;
     solana_program::msg!("ctx done");

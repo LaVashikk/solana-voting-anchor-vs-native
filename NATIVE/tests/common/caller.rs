@@ -1,6 +1,5 @@
 use litesvm::LiteSVM;
 use native_voter_cheap::{instructions::{create_candidate::{self, CreateCandidateArgs, client::CreateCandidateAccounts}, create_pull::{self, CreatePullArgs}, voting::{self, VotingArgs}}, sdk::{AccountState, off_chain::ClientInstruction}, state::{pull::Pull, voter::Voter}};
-use solana_program::rent::Rent;
 use solana_sdk::{message::Message, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 

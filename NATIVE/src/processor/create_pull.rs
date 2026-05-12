@@ -1,10 +1,6 @@
-use bytemuck::{Pod, Zeroable};
-use solana_program::{account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, program::invoke, program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar};
-use solana_program::msg;
-use solana_system_interface::instruction;
-
-use crate::{constants::{MAX_DESC_LEN, MAX_TITLE_LEN}, instructions::create_pull::CreatePullArgs, sdk::InstructionArgs, state::pull::Pull};
-use crate::sdk::{AccountInfoExt, AccountState, system_program::SystemCpiExt};
+use solana_program::{pubkey::Pubkey, account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, program_error::ProgramError, };
+use crate::{instructions::create_pull::CreatePullArgs, sdk::InstructionArgs, state::pull::Pull};
+use crate::sdk::{AccountInfoExt, system_program::SystemCpiExt};
 
 /// Context for creating new pull
 /// Just like in Anchor, but handcrafted :p
@@ -39,8 +35,6 @@ pub fn create_pull<'a>(program_id: &Pubkey, accounts: &'a[AccountInfo<'a>], data
     pull_data.creator = *ctx.payer.key;
     pull_data.title = args.title;
     pull_data.description = args.description;
-    pull_data.title_len = args.title.iter().position(|&b| b == 0).unwrap_or(MAX_TITLE_LEN);
-    pull_data.desc_len = args.description.iter().position(|&b| b == 0).unwrap_or(MAX_DESC_LEN);
 
     pull_data.voting_start = args.voting_start;
     pull_data.voting_end = args.voting_end;
