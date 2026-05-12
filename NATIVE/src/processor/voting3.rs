@@ -6,34 +6,46 @@ use crate::{sdk::{AccountInfoExt, AccountState, system_program::SystemCpiExt}, s
 use crate::state::voter::Voter;
 
 // // IN SDK:
-// another piece of shit, yeah?
-pub trait PdaSeeder<Ctx> {
-    fn with_seeds<R, F>(ctx: &Ctx, f: F) -> Result<R, ProgramError>
+pub trait PdaSeeder: AccountState {
+    type Context<'a, 'info> where 'info: 'a;
+
+    fn with_seeds<'a, 'info, R, F>(ctx: &'a Self::Context<'a, 'info>, f: F) -> Result<R, ProgramError>
     where
+        'info: 'a,
         F: FnOnce(&[&[u8]]) -> Result<R, ProgramError>;
 }
 
-// ------
+// to macros?
+impl PdaSeeder for Voter {
+    type Context<'a, 'info> = VotingCtx<'a, 'info> where 'info: 'a;
+
+    fn with_seeds<'a, 'info, R, F>(ctx: &'a Self::Context<'a, 'info>, f: F) -> Result<R, ProgramError>
+    where
+        'info: 'a,
+        F: FnOnce(&[&[u8]]) -> Result<R, ProgramError>
+    {
+        f(&[b"voter", ctx._pull.key.as_ref(), ctx.voter.key.as_ref()])
+    }
+}
 #[derive(Clone)]
-pub struct ProgramAccountInfo<'a, 'info, T: AccountState> { // todo: use Lifetime Collapsing. like in anchor (idk why they do that. for DX?)
+pub struct ProgramAccountInfo<'a, 'info, T: AccountState + PdaSeeder> { // todo: use Lifetime Collapsing. like in anchor (idk why they do that. for DX?)
     pub account_info: &'a AccountInfo<'info>,
     _marker: PhantomData<T>,
 }
 
-impl<'a, 'info, T: AccountState> ProgramAccountInfo<'a, 'info, T> {
-    pub fn create_pda<Ctx>(
+impl<'a, 'info, T: AccountState + PdaSeeder> ProgramAccountInfo<'a, 'info, T> {
+    pub fn create_pda(
         &self,
-        ctx: &Ctx,
+        ctx: &'a T::Context<'a, 'info>,
         program_id: &Pubkey,
         payer: &AccountInfo<'info>,
         system: &AccountInfo<'info>
-    ) -> Result<u8, ProgramError>
-        where T: PdaSeeder<Ctx>
-    {
+    ) -> Result<u8, ProgramError> {
         // let seeds = Self::get_seeds(ctx);
         let space = T::SIZE;
         let disc = T::DISCRIMINATOR;
         // ..and other already here
+
 
         // PDA CHECKS!
         T::with_seeds(ctx, |seeds| {
@@ -51,29 +63,19 @@ impl<'a, 'info, T: AccountState> ProgramAccountInfo<'a, 'info, T> {
     }
 }
 
-impl<'a, 'info, T: AccountState> Deref for ProgramAccountInfo<'a, 'info, T> {
+impl<'a, 'info, T: AccountState + PdaSeeder> Deref for ProgramAccountInfo<'a, 'info, T> {
     type Target = AccountInfo<'info>;
     fn deref(&self) -> &Self::Target {
         self.account_info
     }
 }
 
-impl<'a, 'info, T: AccountState> From<&'a AccountInfo<'info>> for ProgramAccountInfo<'a, 'info, T> {
+impl<'a, 'info, T: AccountState + PdaSeeder> From<&'a AccountInfo<'info>> for ProgramAccountInfo<'a, 'info, T> {
     fn from(account_info: &'a AccountInfo<'info>) -> Self {
         Self {
             account_info,
             _marker: PhantomData,
         }
-    }
-}
-
-
-
-impl<'a, 'info> PdaSeeder<VotingCtx<'a, 'info>> for Voter {
-    fn with_seeds<R, F>(ctx: &VotingCtx<'a, 'info>, f: F) -> Result<R, ProgramError>
-    where F: FnOnce(&[&[u8]]) -> Result<R, ProgramError>
-    {
-        f(&[b"voter", ctx._pull.key.as_ref(), ctx.voter.key.as_ref()])
     }
 }
 
@@ -96,7 +98,7 @@ impl<'a, 'info> VotingCtx<'a, 'info> {
             voter: next_account_info(iter)?.assert_owner(program_id)?.assert_mut()?,
             _pull: next_account_info(iter)?.assert_owner(program_id)?,
             candidate: next_account_info(iter)?.assert_empty()?.assert_signer()?.assert_mut()?,
-            voter_pda: next_account_info(iter)?.assert_mut()?.assert_empty()?.into(), // to_wrapper somehow
+            voter_pda: next_account_info(iter)?.assert_mut()?.assert_empty()?.into(), // TODO! нахуй проверки, тупо ProgramAccountInfo::TRY_FROM()? и все
             system_program: next_account_info(iter)?.assert_system()?,
         })
     }
