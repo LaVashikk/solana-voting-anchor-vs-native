@@ -6,43 +6,37 @@ pub mod processor;
 pub mod error;
 pub mod constants;
 
-pub const CREATE_PULL_IX: u8 = 1;
-pub const CREATE_CANDIDATE_IX: u8 = 4;
-pub const VOTE_IX: u8 = 8;
+pub const CREATE_PULL_IX: u64       = 1001;
+pub const CREATE_CANDIDATE_IX: u64  = 1002;
+pub const CREATE_VOTE_IX: u64       = 1003;
+pub const CLOSE_PULL_IX: u64        = 2001;
+pub const CLOSE_CANDIDATE_IX: u64   = 2002;
+pub const CLOSE_VOTE_IX: u64        = 2003;
 
 #[cfg(not(feature = "no-entrypoint"))]
 pub mod entrypoint {
     use crate::*;
-    use solana_program::entrypoint;
-    use solana_program::{
-        account_info::AccountInfo,
-        program_error::ProgramError,
-        entrypoint::ProgramResult,
-        pubkey::Pubkey,
-    };
+    use sdk::prelude::*;
 
-    entrypoint!(process_instruction);
+    solana_program::entrypoint!(process_instruction);
 
     pub fn process_instruction<'a>(
-        program_id: &Pubkey,
+        program_id: &'a Pubkey,
         accounts: &'a [AccountInfo<'a>],
         instruction_data: &[u8],
     ) -> ProgramResult {
 
-        // todo: this code to macro or inline in sdk-func??
-        if instruction_data.len() < 8 {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        let (header, data) = instruction_data.split_at(8);
-        let tag = header[0];
-        // msg!("TAG: {}", tag);
-        // msg!("data: {:?}", data);
+        route_instructions! {
+            program_id, accounts, instruction_data;
 
-        match tag {
-            CREATE_PULL_IX => processor::create_pull::create_pull(program_id, accounts, data),
-            CREATE_CANDIDATE_IX => processor::create_candidate::create_candidate(program_id, accounts, data),
-            VOTE_IX => processor::voting::voting(program_id, accounts, data),
-            _ => Err(ProgramError::InvalidInstructionData.into())
+            CREATE_PULL_IX      => processor::create_pull::create_pull,
+            CREATE_CANDIDATE_IX => processor::create_candidate::create_candidate,
+            CREATE_VOTE_IX      => processor::create_vote::voting,
+
+            // CLOSE_PULL_IX =>
+            // CLOSE_CANDIDATE_IX =>
+            // CLOSE_VOTE_IX =>
         }
+
     }
 }

@@ -25,7 +25,7 @@
 
 //     // Creator should receive their share
 //     let creator_balance_after = svm.get_balance(&creator.pubkey()).unwrap();
-//     assert_eq!(creator_balance_after, creator_balance_before + expected_creator_share - 5000);
+//     require_eq!(creator_balance_after, creator_balance_before + expected_creator_share - 5000);
 // }
 
 // #[test]
@@ -86,7 +86,7 @@
 //         data.candidate_count
 //     };
 
-//     assert_eq!(get_candidate_count(&svm), 2);
+//     require_eq!(get_candidate_count(&svm), 2);
 //     set_svm_time(&mut svm, current_time() + 100_000);
 
 //     let creator_balance_before = svm.get_balance(&creator.pubkey()).unwrap();
@@ -100,10 +100,10 @@
 
 //         let expected_count = (candidates.len() - i - 1) as u64;
 //         assert!(svm.get_account(&candidate).is_none());
-//         assert_eq!(get_candidate_count(&svm), expected_count);
+//         require_eq!(get_candidate_count(&svm), expected_count);
 //     }
 
-//     assert_eq!(get_candidate_count(&svm), 0);
+//     require_eq!(get_candidate_count(&svm), 0);
 
 //     // Creator should receive their share
 //     let creator_balance_after = svm.get_balance(&creator.pubkey()).unwrap();

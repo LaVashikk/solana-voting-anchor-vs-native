@@ -10,13 +10,23 @@ crate-type = ["cdylib", "lib"]
 solana-program = "4.0.0"
 solana-system-interface = { version = "3.2.0", features = ["bincode"] }
 bytemuck = { version = "1.25.0", features = ["derive"] }
+thiserror = "2.0"
+paste = "1.0"
+
+# todo: only there (not solana)
+anyhow = "1.0.102"
+num_enum = "0.7.6"
+solana-program-entrypoint = "3.1.1"
 
 [features]
+default = []
+custom-heap = []
+custom-panic = []
 no-entrypoint = []
 
 [lints.rust]
-unused = { level = "allow", priority = -1 } # For exploratory dev.
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
+# unused = { level = "allow", priority = -1 } # For exploratory dev.
 
 [dev-dependencies]
 litesvm = "0.11.0"

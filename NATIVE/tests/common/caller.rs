@@ -4,8 +4,16 @@ use solana_sdk::{message::Message, pubkey::Pubkey, signature::Keypair, signer::S
 
 
 pub fn create_pull(svm: &mut LiteSVM, user: &Keypair, title: &str, description: &str, vote_price: u64) -> Pubkey {
-    let args = CreatePullArgs::new(title, description, 0, 0, vote_price).unwrap(); // todo: time
     let pull = Keypair::new();
+    let current_time = super::current_time();
+    let args = CreatePullArgs::new(
+        title,
+        description,
+        current_time,
+        current_time + 10_000,
+        vote_price,
+    ).unwrap();
+
     let accounts = create_pull::client::CreatePullAccounts {
         payer: user.pubkey(),
         pull_key: pull.pubkey(),

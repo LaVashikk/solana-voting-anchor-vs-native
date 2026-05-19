@@ -7,7 +7,6 @@ pub struct VotingArgs;
 
 impl InstructionArgs for VotingArgs {}
 
-
 // OFF-CHAIN LOGIC
 #[cfg(not(target_os = "solana"))]
 pub mod client {
@@ -24,7 +23,7 @@ pub mod client {
 
     impl ClientInstruction for VotingArgs {
         type Accounts = VotingAccounts;
-        const IX_TAG: u8 = crate::VOTE_IX;
+        const IX_TAG: u64 = crate::CREATE_VOTE_IX;
 
         fn accounts_to_metas(accs: &Self::Accounts) -> Vec<solana_program::instruction::AccountMeta> {
             vec![

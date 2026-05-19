@@ -42,7 +42,7 @@ pub mod client {
 
     impl ClientInstruction for CreatePullArgs {
         type Accounts = CreatePullAccounts;
-        const IX_TAG: u8 = crate::CREATE_PULL_IX;
+        const IX_TAG: u64 = crate::CREATE_PULL_IX;
 
         fn accounts_to_metas(accs: &Self::Accounts) -> Vec<solana_program::instruction::AccountMeta> {
             vec![

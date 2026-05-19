@@ -88,7 +88,7 @@
 //     let res = svm.send_transaction(tx2);
 
 //     let err = res.unwrap_err();
-//     assert_eq!(err.err, TransactionError::AlreadyProcessed);
+//     require_eq!(err.err, TransactionError::AlreadyProcessed);
 // }
 
 // #[test]
@@ -125,7 +125,7 @@
 
 //     // Since the transaction is atomic and rolled back entirely, the bot's balance should not change
 //     let bot_balance_after = svm.get_balance(&bot.pubkey()).unwrap();
-//     assert_eq!(
+//     require_eq!(
 //         bot_balance_before, bot_balance_after + 5000,
 //     );
 // }

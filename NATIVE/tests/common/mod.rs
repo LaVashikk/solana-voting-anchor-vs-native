@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-//! TODO: копипаст с проекта на anchor. common будет переделан!
+//! TODO: copy-paste from an anchor project. will be reworked!
 
 pub const PROGRAM_ID: Pubkey = Pubkey::from_str_const("9AvUNHjxscdkiKQ8tUn12QCMXtcnbR9BVGq3ULNzFMRi");
 

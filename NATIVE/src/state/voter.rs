@@ -16,7 +16,6 @@ impl Discriminator for Voter {
     const DISCRIMINATOR: u8 = 4; // todo: use const value
 }
 
-
 impl Voter {
     #[inline]
     pub fn get_seeds<'a>(pull_key: &'a Pubkey, voter_key: &'a Pubkey) -> [&'a [u8]; 3] {

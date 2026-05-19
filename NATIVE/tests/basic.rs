@@ -1,4 +1,4 @@
-use native_voter_cheap::{instructions::voting::VotingArgs, sdk::{AccountState, off_chain::ClientInstruction}, state::{candidate::Candidate, pull::Pull, voter::Voter}};
+use native_voter_cheap::{instructions::voting::VotingArgs, sdk::{AccountState, Discriminator, off_chain::ClientInstruction, pod_types::option::PodOption}, state::{candidate::Candidate, pull::Pull, voter::Voter}};
 use solana_sdk::{message::Message, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 mod common;
@@ -51,9 +51,19 @@ fn create_couple_candidaete_test() {
     assert!(svm.get_account(&candidate_3).is_some());
     assert!(svm.get_account(&candidate_4).is_some());
 
+    let mut previous: PodOption<Pubkey> = PodOption::none();
+    for c in [&candidate_1, &candidate_2, &candidate_3, &candidate_4] {
+        assert_eq!(
+            Candidate::try_from_bytes( svm.get_account(c).unwrap().data.as_slice() ).unwrap().last_candidate,
+            previous
+        );
+        previous = PodOption::some(c.clone());
+    }
+
     let pull_account = svm.get_account(&pull_pda).unwrap();
     let pull_data = Pull::try_from_bytes(pull_account.data.as_slice()).unwrap();
     assert_eq!(pull_data.candidate_count, 4);
+    assert_eq!(pull_data.last_candidate, PodOption::some(candidate_4));
 }
 
 #[test]
@@ -103,25 +113,25 @@ fn voting_test() {
     assert_eq!(pull_data.candidate_count, 2);
 }
 
-// #[test]
-// fn voting_with_price_test() {
-//     let (mut svm, user) = init_svm_env("native_voter_cheap");
+#[test]
+fn voting_with_price_test() {
+    let (mut svm, user) = init_svm_env("native_voter_cheap");
 
-//     let vote_price = LAMPORTS_PER_SOL / 2;
-//     let (pull_pda, _) = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", vote_price);
-//     let (candidate_1, _) = create_candidate(&mut svm, &user, pull_pda.clone(), "Rust", 0);
+    let vote_price = LAMPORTS_PER_SOL / 2;
+    let pull = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", vote_price);
+    let candidate_1 = create_candidate(&mut svm, &user, pull.clone(), "Rust");
 
-//     // Voting started and voting for the candidate
-//     set_svm_time(&mut svm, current_time() + 100);
-//     let voter_pda = voting(&mut svm, &user, pull_pda.clone(), candidate_1.clone());
+    // Voting started and voting for the candidate
+    set_svm_time(&mut svm, current_time() + 100);
+    let voter_pda = voting(&mut svm, &user, pull.clone(), candidate_1.clone());
 
-//     // Now check the balance of the user
-//     let voter_account = svm.get_account(&voter_pda).unwrap();
-//     let rent = svm.get_sysvar::<solana_sdk::rent::Rent>();
-//     let expected_rent = rent.minimum_balance(8 + native_voter_cheap::Voter::INIT_SPACE);
-//     assert_eq!(voter_account.lamports, expected_rent + vote_price);
-// }
-// // todo: check closing shit and balance
+    // Now check the balance of the user
+    let voter_account = svm.get_account(&voter_pda).unwrap();
+    let rent = svm.get_sysvar::<solana_sdk::rent::Rent>();
+    let expected_rent = rent.minimum_balance(Voter::SIZE);
+    assert_eq!(voter_account.lamports, expected_rent + vote_price);
+}
+// todo: check closing shit and balance
 
 #[test]
 fn double_voting_test() {

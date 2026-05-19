@@ -33,7 +33,7 @@ pub mod client {
 
     impl ClientInstruction for CreateCandidateArgs {
         type Accounts = CreateCandidateAccounts;
-        const IX_TAG: u8 = crate::CREATE_CANDIDATE_IX;
+        const IX_TAG: u64 = crate::CREATE_CANDIDATE_IX;
 
         fn accounts_to_metas(accs: &Self::Accounts) -> Vec<solana_program::instruction::AccountMeta> {
             vec![

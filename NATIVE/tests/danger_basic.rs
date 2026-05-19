@@ -56,7 +56,7 @@
 //     let (pull_pda, _) = create_pull(&mut svm, &creator, "Best programming language", "This is a test pull", 0);
 //     let (candidate_1, _) = create_candidate(&mut svm, &creator, pull_pda.clone(), "Rust", 0);
 
-//     let check_candidate_votes = |svm: &litesvm::LiteSVM| {
+//     let require_candidate_votes = |svm: &litesvm::LiteSVM| {
 //         let candidate_account = svm.get_account(&candidate_1).unwrap();
 //         let candidate_data = native_voter_cheap::Candidate::try_deserialize(&mut candidate_account.data.as_slice()).unwrap(); // todo: improve it, move to common
 //         candidate_data.number_of_votes
@@ -65,7 +65,7 @@
 //     // Voting started
 //     set_svm_time(&mut svm, current_time() + 100);
 //     voting(&mut svm, &user1, pull_pda.clone(), candidate_1.clone());
-//     assert_eq!(check_candidate_votes(&svm), 1);
+//     require_eq!(require_candidate_votes(&svm), 1);
 
 //     set_svm_time(&mut svm, current_time() + 100_000);
 
@@ -76,7 +76,7 @@
 //     let tx = Transaction::new(&[&user2], msg, svm.latest_blockhash());
 //     let res = svm.send_transaction(tx);
 
-//     assert_eq!(check_candidate_votes(&svm), 1);
+//     require_eq!(require_candidate_votes(&svm), 1);
 //     assert!(res.is_err());
 
 //     let err = res.unwrap_err();
