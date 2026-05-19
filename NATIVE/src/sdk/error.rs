@@ -1,6 +1,8 @@
 use std::fmt;
 use std::error::Error;
 
+// todo: thiserror
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapacityError {
     pub max_capacity: usize,

@@ -7,10 +7,11 @@ use solana_program::{account_info::AccountInfo, program_error::ProgramError, pub
 use solana_program::program::invoke_signed;
 use solana_system_interface::instruction;
 
-use crate::sdk::{AccountInfoExt, Discriminator};
+use crate::sdk::{Discriminator, PdaExt};
 
 // TODO: a relly VERY WIP
 pub trait SystemCpiExt<'a> {
+    /// todo
     fn create_raw_account_cpi(
         &self,
         payer: &AccountInfo<'a>,
@@ -19,6 +20,7 @@ pub trait SystemCpiExt<'a> {
         owner: &Pubkey,
     ) -> Result<(), ProgramError>;
 
+    /// todo
     fn create_sdk_account_cpi<T: Discriminator>(
         &self,
         payer: &AccountInfo<'a>,
@@ -26,6 +28,7 @@ pub trait SystemCpiExt<'a> {
         owner: &Pubkey,
     ) -> Result<(), ProgramError>;
 
+    /// todo
     fn create_raw_pda_cpi(
         &self,
         payer: &AccountInfo<'a>,
@@ -36,6 +39,7 @@ pub trait SystemCpiExt<'a> {
         program_id: &Pubkey,
     ) -> Result<(), ProgramError>;
 
+    /// todo
     fn create_sdk_pda_cpi<T: Discriminator>(
         &self,
         payer: &AccountInfo<'a>,
@@ -45,7 +49,7 @@ pub trait SystemCpiExt<'a> {
         program_id: &Pubkey,
     ) -> Result<(), ProgramError>;
 
-    // Sugar for 'in-buissnes-logic' uses, or whatever
+    /// Sugar for 'in-buissnes-logic' uses, or whatever
     fn checked_create_sdk_pda_cpi<T: Discriminator>(
         &self,
         payer: &AccountInfo<'a>,
@@ -53,6 +57,22 @@ pub trait SystemCpiExt<'a> {
         seeds: &[&[u8]],
         program_id: &Pubkey,
     ) -> Result<u8, ProgramError>;
+
+    /// todo comment
+    fn transfer_lamports_cpi(
+        &self,
+        destination: &AccountInfo<'a>,
+        system_program: &AccountInfo<'a>,
+        lamports: u64,
+    ) -> Result<(), ProgramError>;
+
+    /// todo comment
+    fn receive_lamports_cpi(
+        &self,
+        from: &AccountInfo<'a>,
+        system_program: &AccountInfo<'a>,
+        lamports: u64,
+    ) -> Result<(), ProgramError>;
 }
 
 impl<'a> SystemCpiExt<'a> for AccountInfo<'a> {
@@ -163,8 +183,34 @@ impl<'a> SystemCpiExt<'a> for AccountInfo<'a> {
         seeds: &[&[u8]],
         program_id: &Pubkey,
     ) -> Result<u8, ProgramError> {
-        let bump = self.assert_pda(seeds, program_id)?;
+        let bump = self.find_and_verify_pda(seeds, program_id)?;
         self.create_sdk_pda_cpi::<T>(payer, system_program, seeds, bump, program_id)?;
         Ok(bump)
+    }
+
+    #[inline(always)]
+    fn transfer_lamports_cpi(
+        &self,
+        destination: &AccountInfo<'a>,
+        system_program: &AccountInfo<'a>,
+        lamports: u64,
+    ) -> Result<(), ProgramError> {
+        solana_program::program::invoke(
+            &instruction::transfer(self.key, destination.key, lamports),
+            &[self.clone(), destination.clone(), system_program.clone()],
+        )
+    }
+
+    #[inline(always)]
+    fn receive_lamports_cpi(
+        &self,
+        from: &AccountInfo<'a>,
+        system_program: &AccountInfo<'a>,
+        lamports: u64,
+    ) -> Result<(), ProgramError> {
+        solana_program::program::invoke( // what if it PDA?
+            &instruction::transfer(from.key, self.key, lamports),
+            &[from.clone(), self.clone(), system_program.clone()],
+        )
     }
 }

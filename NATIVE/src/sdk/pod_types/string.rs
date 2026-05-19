@@ -18,11 +18,29 @@ impl_multiple_of_8!(
     136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256
 );
 
-#[derive(Debug, Clone, Copy)]
-#[repr(C)]
+// TODO: arraystring is exist.
+// todo: Endianness
+
+#[derive(Clone, Copy)]
+#[repr(C, align(8))]
 pub struct FixedString<const N: usize> where [(); N]: IsMultipleOf8 {
     pub(crate) data: [u8; N],
     pub(crate) len: u64,
+}
+
+impl<const N: usize> std::fmt::Debug for FixedString<N> where [(); N]: IsMultipleOf8 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FixedString")
+            .field("data", &self.as_str_lossy())
+            .field("len", &self.len)
+            .finish()
+    }
+}
+
+impl<const N: usize> std::fmt::Display for FixedString<N> where [(); N]: IsMultipleOf8 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str_lossy())
+    }
 }
 
 // SAFETY: Zeroable is safe because zeros are valid for both u8 and u64
@@ -34,7 +52,6 @@ impl<const N: usize> FixedString<N> where [(); N]: IsMultipleOf8 {
     /// Suitable for constants
     /// Panics if the string does not fit
     pub const fn new(s: &str) -> Self {
-
         let mut bytes_arr = [0; N];
         let s_bytes = s.as_bytes();
         let s_len = s_bytes.len();
@@ -54,6 +71,7 @@ impl<const N: usize> FixedString<N> where [(); N]: IsMultipleOf8 {
     }
 
     /// Safety method for runtime
+    #[inline(always)]
     pub fn try_new(s: impl AsRef<str>) -> Result<Self, CapacityError> { // todo: use here some kind of CapacityError
         let mut bytes_arr = [0; N];
         let s_bytes = s.as_ref().as_bytes();
@@ -83,8 +101,8 @@ impl<const N: usize> FixedString<N> where [(); N]: IsMultipleOf8 {
     }
 
     #[inline]
-    pub fn as_bytes(&self) -> &[u8; N] {
-        &self.data
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.data[..self.len()]
     }
 
     #[inline]

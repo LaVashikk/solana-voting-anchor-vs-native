@@ -21,14 +21,14 @@ impl IntoAccountMeta for Pubkey {
 
 pub trait ClientInstruction: Pod {
     type Accounts;
-    const IX_TAG: u8;
+    const IX_TAG: u64;
 
     fn accounts_to_metas(accounts: &Self::Accounts) -> Vec<AccountMeta>;
 
     // ----- inner methods -----
     fn to_bytes(&self) -> Vec<u8> {
         let mut data = vec![0u8; 8 + std::mem::size_of::<Self>()];
-        data[0] = Self::IX_TAG;
+        data[0..8].copy_from_slice(&Self::IX_TAG.to_le_bytes());
         data[8..].copy_from_slice(bytemuck::bytes_of(self));
         data
     }
