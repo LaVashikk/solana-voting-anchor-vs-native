@@ -873,6 +873,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dummy-sdk"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "num_enum",
+ "paste",
+ "solana-program 4.0.0",
+ "solana-system-interface 3.2.0",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "eager"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1499,6 +1511,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bytemuck",
+ "dummy-sdk",
  "litesvm",
  "num_enum",
  "paste",

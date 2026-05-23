@@ -1,6 +1,6 @@
+use dummy_sdk::accounts::Discriminator;
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
-use crate::sdk::Discriminator;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
@@ -13,7 +13,7 @@ pub struct Voter {
 }
 
 impl Discriminator for Voter {
-    const DISCRIMINATOR: u8 = 4; // todo: use const value
+    const DISCRIMINATOR: u8 = crate::constants::VOTE_DISC;
 }
 
 impl Voter {

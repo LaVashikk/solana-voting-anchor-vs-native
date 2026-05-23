@@ -1,5 +1,3 @@
-
-pub mod sdk;
 pub mod state;
 pub mod instructions;
 pub mod processor;
@@ -16,7 +14,7 @@ pub const CLOSE_VOTE_IX: u64        = 2003;
 #[cfg(not(feature = "no-entrypoint"))]
 pub mod entrypoint {
     use crate::*;
-    use sdk::prelude::*;
+    use dummy_sdk::prelude::*;
 
     solana_program::entrypoint!(process_instruction);
 
@@ -33,9 +31,9 @@ pub mod entrypoint {
             CREATE_CANDIDATE_IX => processor::create_candidate::create_candidate,
             CREATE_VOTE_IX      => processor::create_vote::voting,
 
-            // CLOSE_PULL_IX =>
-            // CLOSE_CANDIDATE_IX =>
-            // CLOSE_VOTE_IX =>
+            CLOSE_PULL_IX       => processor::close_pull::close_pull,
+            CLOSE_CANDIDATE_IX  => processor::close_candidate::close_candidate,
+            CLOSE_VOTE_IX       => processor::close_vote::close_vote
         }
 
     }

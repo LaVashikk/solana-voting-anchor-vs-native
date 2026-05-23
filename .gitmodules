@@ -1,0 +1,3 @@
+[submodule "NATIVE/dummy-sdk"]
+	path = NATIVE/dummy-sdk
+	url = https://github.com/LaVashikk/solana-dummy-sdk

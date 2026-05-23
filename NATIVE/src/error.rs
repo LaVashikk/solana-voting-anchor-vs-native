@@ -1,4 +1,4 @@
-use crate::{declare_error, define_program_error};
+use dummy_sdk::define_program_error;
 
 define_program_error! {
     pub enum VotingError {
@@ -8,6 +8,8 @@ define_program_error! {
         MathError,
         #[error("Invalid creator")]
         InvalidCreator,
+        #[error("Invalid candidate")]
+        InvalidCandidate,
         #[error("Invalid voter")]
         InvalidVoter,
         #[error("Invalid pull")]

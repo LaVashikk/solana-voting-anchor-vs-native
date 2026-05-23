@@ -1,4 +1,4 @@
-use crate::sdk::prelude::*;
+use dummy_sdk::prelude::*;
 use crate::{error::VotingError, instructions::create_candidate::CreateCandidateArgs, state::{candidate::Candidate, pull::Pull}};
 
 /// Context for creating new candidate
@@ -23,9 +23,15 @@ impl<'info> CreateCandidateCtx<'info> {
 
     pub fn checks(&self) -> ProgramResult {
         let clock = Clock::get()?;
+        let pull = self.pull.load::<Pull>()?;
+
         require!(
-            self.pull.load::<Pull>()?.voting_end >= clock.unix_timestamp,
+            pull.voting_end >= clock.unix_timestamp,
             VotingError::VotingAlreadyEnded,
+        );
+        require!(
+            self.payer.key == &pull.creator,
+            VotingError::InvalidCreator
         );
 
         Ok(())
@@ -41,13 +47,13 @@ pub fn create_candidate<'a>(program_id: &Pubkey, accounts: &'a[AccountInfo<'a>],
 
     let mut pull_data = ctx.pull.load_mut::<Pull>()?;
     let last_candidate = pull_data.last_candidate;
-    pull_data.candidate_count = pull_data.candidate_count.saturating_add(1);
+    pull_data.candidate_count = pull_data.candidate_count.checked_add(1).ok_or(VotingError::MathError)?;
     pull_data.last_candidate = PodOption::some(ctx.candidate.key.clone());
 
     let mut candidate_data = ctx.candidate.load_mut::<Candidate>()?;
     candidate_data.pull = *ctx.pull.key;
     candidate_data.name = args.name;
-    candidate_data.last_candidate = last_candidate;
+    candidate_data.prev_candidate = last_candidate;
 
     Ok(())
 }

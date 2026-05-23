@@ -1,4 +1,5 @@
-use native_voter_cheap::{instructions::voting::VotingArgs, sdk::{AccountState, Discriminator, off_chain::ClientInstruction, pod_types::option::PodOption}, state::{candidate::Candidate, pull::Pull, voter::Voter}};
+use dummy_sdk::prelude::*;
+use native_voter_cheap::{instructions::create_vote::VotingArgs, state::{candidate::Candidate, pull::Pull, voter::Voter}};
 use solana_sdk::{message::Message, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 mod common;
@@ -54,7 +55,7 @@ fn create_couple_candidaete_test() {
     let mut previous: PodOption<Pubkey> = PodOption::none();
     for c in [&candidate_1, &candidate_2, &candidate_3, &candidate_4] {
         assert_eq!(
-            Candidate::try_from_bytes( svm.get_account(c).unwrap().data.as_slice() ).unwrap().last_candidate,
+            Candidate::try_from_bytes( svm.get_account(c).unwrap().data.as_slice() ).unwrap().prev_candidate,
             previous
         );
         previous = PodOption::some(c.clone());
@@ -89,9 +90,9 @@ fn voting_test() {
     let candidate_2 = create_candidate(&mut svm, &user, pull_pda.clone(), "Python");
 
     let voter_trackers = [
-        (voting(&mut svm, &user, pull_pda.clone(), candidate_1.clone()), candidate_1),
-        (voting(&mut svm, &user2, pull_pda.clone(), candidate_1.clone()), candidate_1),
-        (voting(&mut svm, &user3, pull_pda.clone(), candidate_2.clone()), candidate_2),
+        (create_vote(&mut svm, &user, pull_pda.clone(), candidate_1.clone()), candidate_1),
+        (create_vote(&mut svm, &user2, pull_pda.clone(), candidate_1.clone()), candidate_1),
+        (create_vote(&mut svm, &user3, pull_pda.clone(), candidate_2.clone()), candidate_2),
     ];
 
     for (voter_pda, candidate) in voter_trackers.iter() {
@@ -123,7 +124,7 @@ fn voting_with_price_test() {
 
     // Voting started and voting for the candidate
     set_svm_time(&mut svm, current_time() + 100);
-    let voter_pda = voting(&mut svm, &user, pull.clone(), candidate_1.clone());
+    let voter_pda = create_vote(&mut svm, &user, pull.clone(), candidate_1.clone());
 
     // Now check the balance of the user
     let voter_account = svm.get_account(&voter_pda).unwrap();
@@ -142,7 +143,7 @@ fn double_voting_test() {
     let candidate = create_candidate(&mut svm, &user, pull.clone(), "Rust");
 
     let (voter_pda, _) = Pubkey::find_program_address(&Voter::get_seeds(&pull, &user.pubkey()), &common::PROGRAM_ID);
-    let accounts = native_voter_cheap::instructions::voting::client::VotingAccounts {
+    let accounts = native_voter_cheap::instructions::create_vote::client::VotingAccounts {
         voter: user.pubkey(),
         pull,
         candidate,

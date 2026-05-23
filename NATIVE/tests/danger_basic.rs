@@ -1,88 +1,115 @@
-// mod common;
-// use anchor_lang::AccountDeserialize;
-// use common::*;
-// use solana_sdk::{message::Message, signer::Signer, transaction::Transaction};
+mod common;
+use common::*;
+use solana_sdk::signature::Keypair;
 
-// #[test]
-// #[should_panic]
-// fn cross_poll_voting_test() {
-//     let (mut svm, user) = init_svm_env("native_voter_cheap");
+#[test]
+fn test_cross_poll_voting() {
+    let (mut svm, user) = init_svm_env("native_voter_cheap");
 
-//     let (pull_1, _) = create_pull(&mut svm, &user, "Poll 1", "Desc 1", 0);
-//     let (pull_2, _) = create_pull(&mut svm, &user, "Poll 2", "Desc 2", 0);
+    let pull_1 = create_pull(&mut svm, &user, "Poll 1", "Desc 1", 0);
+    let pull_2 = create_pull(&mut svm, &user, "Poll 2", "Desc 2", 0);
 
-//     // Candidate belongs to poll_2
-//     let (candidate_2, _) = create_candidate(&mut svm, &user, pull_2, "Python", 0);
+    // Candidate belongs to poll_2
+    let candidate_2 = create_candidate(&mut svm, &user, pull_2, "Python");
 
-//     // Try to vote in poll_1 with candidate from poll_2
-//     let (ix, _) = ix_voting(user.pubkey(), pull_1, candidate_2);
+    // Try to vote in poll_1 with candidate from poll_2
+    let res = create_vote_raw(&mut svm, &user, pull_1, candidate_2);
 
-//     let msg = Message::new(&[ix], Some(&user.pubkey()));
-//     let tx = Transaction::new(&[&user], msg, svm.latest_blockhash());
-//     svm.send_transaction(tx).unwrap(); // Should fail: candidate.pull != pull_1
-// }
+    let err = res.unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("Invalid pull")),
+        "Expected log 'Invalid pull', but got logs: {:#?}",
+        err.meta.logs
+    );
+}
 
-// #[test]
-// #[should_panic]
-// fn candidate_index_mismatch_test() {
-//     let (mut svm, user) = init_svm_env("native_voter_cheap");
-//     let (pull, _) = create_pull(&mut svm, &user, "Best language", "Test", 0);
+#[test]
+fn test_create_candidate_invalid_creator() {
+    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let other_user = create_user(&mut svm);
 
-//     // pull.candidate_count is 0, but we pass idx 5
-//     // Should fail if the contract properly checks: idx == pull.candidate_count
-//     let _ = create_candidate(&mut svm, &user, pull, "Rust", 5);
-// }
+    let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
 
-// #[test]
-// #[should_panic]
-// fn duplicate_candidate_pda_test() {
-//     let (mut svm, user) = init_svm_env("native_voter_cheap");
-//     let (pull, _) = create_pull(&mut svm, &user, "Best language", "Test", 0);
+    // Try to create candidate by non-creator
+    let candidate_keypair = Keypair::new();
+    let res = create_candidate_raw(&mut svm, &other_user, pull_pda, &candidate_keypair, "Rust");
 
-//     // Create first candidate at idx 0
-//     let _ = create_candidate(&mut svm, &user, pull.clone(), "Rust", 0);
+    let err = res.unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("Invalid creator")),
+        "Expected log 'Invalid creator', but got logs: {:#?}",
+        err.meta.logs
+    );
+}
 
-//     // Try to create another candidate at the SAME idx 0
-//     // Should fail: account already initialized (PDA collision)
-//     let _ = create_candidate(&mut svm, &user, pull, "Python", 0);
-// }
+#[test]
+fn test_voting_after_end() {
+    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let user = create_user(&mut svm);
 
-// #[test]
-// fn voting_after_end_test() {
-//     let (mut svm, creator) = init_svm_env("native_voter_cheap");
-//     let user1 = create_user(&mut svm);
-//     let user2 = create_user(&mut svm);
+    let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
+    let candidate = create_candidate(&mut svm, &creator, pull_pda, "Rust");
 
-//     let (pull_pda, _) = create_pull(&mut svm, &creator, "Best programming language", "This is a test pull", 0);
-//     let (candidate_1, _) = create_candidate(&mut svm, &creator, pull_pda.clone(), "Rust", 0);
+    // Move time forward past end (default end is current_time + 10_000 in create_pull)
+    set_svm_time(&mut svm, current_time() + 20_000);
 
-//     let require_candidate_votes = |svm: &litesvm::LiteSVM| {
-//         let candidate_account = svm.get_account(&candidate_1).unwrap();
-//         let candidate_data = native_voter_cheap::Candidate::try_deserialize(&mut candidate_account.data.as_slice()).unwrap(); // todo: improve it, move to common
-//         candidate_data.number_of_votes
-//     };
+    let res = create_vote_raw(&mut svm, &user, pull_pda, candidate);
 
-//     // Voting started
-//     set_svm_time(&mut svm, current_time() + 100);
-//     voting(&mut svm, &user1, pull_pda.clone(), candidate_1.clone());
-//     require_eq!(require_candidate_votes(&svm), 1);
+    let err = res.unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("Voting Already Ended")),
+        "Expected log 'Voting Already Ended', but got logs: {:#?}",
+        err.meta.logs
+    );
+}
 
-//     set_svm_time(&mut svm, current_time() + 100_000);
+#[test]
+fn test_voting_before_start() {
+    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let user = create_user(&mut svm);
 
-//     // not allowed!
-//     let (ix, _) = ix_voting(user2.pubkey(), pull_pda, candidate_1);
+    // I need a way to create a pull with start time in future.
+    // Let's manually build the transaction for create_pull or update create_pull helper.
+    // For now, I'll just set svm time to something BEFORE the pull start time.
 
-//     let msg = Message::new(&[ix], Some(&user2.pubkey()));
-//     let tx = Transaction::new(&[&user2], msg, svm.latest_blockhash());
-//     let res = svm.send_transaction(tx);
+    let now = current_time();
+    let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
+    let candidate = create_candidate(&mut svm, &creator, pull_pda, "Rust");
 
-//     require_eq!(require_candidate_votes(&svm), 1);
-//     assert!(res.is_err());
+    // Set time to before pull creation (which used 'now' as start time)
+    set_svm_time(&mut svm, now - 100);
 
-//     let err = res.unwrap_err();
-//     assert!(
-//         err.meta.logs.iter().any(|l| l.contains("VotingAlreadyEnded")),
-//         "Contract accepted voting after closing! Logs: {:#?}",
-//         err.meta.logs
-//     );
-// }
+    let res = create_vote_raw(&mut svm, &user, pull_pda, candidate);
+
+    let err = res.unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("Not started")),
+        "Expected log 'Not started', but got logs: {:#?}",
+        err.meta.logs
+    );
+}
+
+#[test]
+fn test_duplicate_vote() {
+    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let user = create_user(&mut svm);
+
+    let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
+    let candidate = create_candidate(&mut svm, &creator, pull_pda, "Rust");
+
+    set_svm_time(&mut svm, current_time() + 10_000);
+
+    // First vote
+    create_vote(&mut svm, &user, pull_pda, candidate);
+
+    // Second vote should fail (PDA already exists)
+    svm.expire_blockhash();
+    let res = create_vote_raw(&mut svm, &user, pull_pda, candidate);
+
+    let err = res.unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("already initialized")),
+        "Expected log about account already in use, but got logs: {:#?}",
+        err.meta.logs
+    );
+}

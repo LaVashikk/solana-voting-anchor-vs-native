@@ -1,7 +1,7 @@
+use dummy_sdk::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
-
-use crate::{constants::{MAX_DESC_LEN, MAX_TITLE_LEN}, sdk::{Discriminator, pod_types::{option::PodOption, string::FixedString}}};
+use crate::constants::{MAX_DESC_LEN, MAX_TITLE_LEN};
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
@@ -23,7 +23,7 @@ pub struct Pull {
 }
 
 impl Discriminator for Pull {
-    const DISCRIMINATOR: u8 = 1; // todo: use const value
+    const DISCRIMINATOR: u8 = crate::constants::PULL_DISC;
 }
 
 impl Pull {

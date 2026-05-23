@@ -1,4 +1,4 @@
-use crate::sdk::prelude::*;
+use dummy_sdk::prelude::*;
 use crate::{error::VotingError, state::{candidate::Candidate, voter::Voter, pull::Pull}};
 
 struct VotingCtx<'info> {
@@ -25,7 +25,12 @@ impl<'info> VotingCtx<'info> {
     pub fn checks(&self) -> ProgramResult {
         let clock = Clock::get()?;
         let pull = self.pull.load::<Pull>()?;
+        let candidate = self.candidate.load::<Candidate>()?;
 
+        require!(
+            candidate.pull == *self.pull.key,
+            VotingError::InvalidPull
+        );
         require!(
             pull.voting_start <= clock.unix_timestamp,
             VotingError::VotingNotStarted,
@@ -53,7 +58,7 @@ pub fn voting<'a>(program_id: &Pubkey, accounts: &'a[AccountInfo<'a>], _data: &[
     )?;
 
     ctx.candidate.with_mut::<Candidate, _>(|candidate| {
-        candidate.number_of_votes += 1; // todo: handle
+        candidate.number_of_votes += 1; // it's safe, u64 overflow is economically impossible
     })?;
 
     ctx.voter_pda.with_mut::<Voter, _>(|voter| {

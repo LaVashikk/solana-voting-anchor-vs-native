@@ -1,5 +1,5 @@
+use dummy_sdk::instruction::InstructionArgs;
 use bytemuck::{Pod, Zeroable};
-use crate::sdk::InstructionArgs;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
@@ -12,7 +12,7 @@ impl InstructionArgs for VotingArgs {}
 pub mod client {
     use super::*;
     use solana_program::pubkey::Pubkey;
-    use crate::sdk::off_chain::{ClientInstruction, IntoAccountMeta};
+    use dummy_sdk::client::{ClientInstruction, IntoAccountMeta};
 
     pub struct VotingAccounts {
         pub voter: Pubkey,

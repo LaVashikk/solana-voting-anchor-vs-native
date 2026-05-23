@@ -1,6 +1,6 @@
+use dummy_sdk::prelude::*;
 use bytemuck::{Pod, Zeroable};
-use crate::sdk::pod_types::string::FixedString;
-use crate::{constants::MAX_CANDIDATE_NAME_LEN, sdk::InstructionArgs};
+use crate::constants::MAX_CANDIDATE_NAME_LEN;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
@@ -23,7 +23,7 @@ impl CreateCandidateArgs {
 pub mod client {
     use super::*;
     use solana_program::pubkey::Pubkey;
-    use crate::sdk::off_chain::{ClientInstruction, IntoAccountMeta};
+    use dummy_sdk::client::{ClientInstruction, IntoAccountMeta};
 
     pub struct CreateCandidateAccounts {
         pub payer: Pubkey,

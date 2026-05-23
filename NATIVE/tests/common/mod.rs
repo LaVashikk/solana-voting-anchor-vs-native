@@ -4,13 +4,14 @@
 
 pub const PROGRAM_ID: Pubkey = Pubkey::from_str_const("9AvUNHjxscdkiKQ8tUn12QCMXtcnbR9BVGq3ULNzFMRi");
 
+use dummy_sdk::accounts::pod::PodAccountData;
 use litesvm::LiteSVM;
+use native_voter_cheap::state::{candidate::Candidate, pull::Pull};
 use solana_sdk::{clock::Clock, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::Keypair, signer::Signer};
-use std::{env, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+use std::{env, time::{SystemTime, UNIX_EPOCH}};
 
 // mod ix_builder;
 mod caller;
-
 // pub use ix_builder::*;
 pub use caller::*;
 
@@ -30,22 +31,22 @@ pub fn create_user(svm: &mut LiteSVM) -> Keypair {
 pub fn init_svm_env(program: &str) -> (LiteSVM, Keypair) {
     let mut svm = LiteSVM::new();
 
-    // let target_path = env::var("TARGET_PATH").ok()
-    //     .map(PathBuf::from)
-    //     .or_else(|| {
-    //         env::current_dir()
-    //             .ok()
-    //             .map(|cwd| cwd.join("target"))
-    //             .filter(|dir| dir.is_dir())
-    //     })
-    //     .unwrap_or_else(|| {
-    //         panic!("Cannot find 'target' directory, use \"TARGET_PATH\" environment variable to specify path to 'target' directory")
-    //     });
+    let target_path = env::var("TARGET_PATH").ok()
+        .map(PathBuf::from)
+        .or_else(|| {
+            env::current_dir()
+                .ok()
+                .map(|cwd| cwd.join("target"))
+                .filter(|dir| dir.is_dir())
+        })
+        .unwrap_or_else(|| {
+            panic!("Cannot find 'target' directory, use \"TARGET_PATH\" environment variable to specify path to 'target' directory")
+        });
 
-    // let program_path = target_path.join("deploy").join(program).with_extension("so");
+    let program_path = target_path.join("deploy").join(program).with_extension("so");
     // println!("Program path: {}", program_path.display());
 
-    let program_path = env::home_dir().unwrap().join(".cargo").join("target").join("deploy").join(program).with_extension("so"); // todo: only for local testing
+    // let program_path = env::home_dir().unwrap().join(".cargo").join("target").join("deploy").join(program).with_extension("so"); // todo: only for local testing
 
     let program_bytes = std::fs::read(program_path)
         .expect("cargo build-sbf!");
@@ -61,4 +62,25 @@ pub fn set_svm_time(svm: &mut LiteSVM, time: i64) {
     clock.unix_timestamp = time;
     svm.set_sysvar(&clock);
 
+}
+
+pub fn read_data<T: PodAccountData + Copy>(svm: &LiteSVM, pubkey: &Pubkey) -> T {
+    let account = svm.get_account(pubkey).unwrap();
+    let bytes = account.data;
+    *T::try_from_bytes(bytes.as_slice()).unwrap()
+}
+
+pub fn native_get_all_candidate(svm: &LiteSVM, pull_pubkey: &Pubkey) -> Vec<Candidate> {
+    let pull = read_data::<Pull>(svm, pull_pubkey);
+
+    let mut result = Vec::with_capacity(32);
+    let mut prev_candidate = pull.last_candidate;
+
+    while prev_candidate.is_some() {
+        let candidate = read_data::<Candidate>(svm, &prev_candidate.unwrap());
+        prev_candidate = candidate.prev_candidate;
+        result.push(candidate);
+    }
+
+    result
 }

@@ -1,4 +1,4 @@
-use crate::sdk::{ForProgramExt, InitOwnedAccount, ParseAccountExt, ParseFrom, SignerAccount, SystemProgram, prelude::*};
+use dummy_sdk::prelude::*;
 use crate::{error::VotingError, instructions::create_pull::CreatePullArgs, state::pull::Pull};
 
 /// Context for creating new pull
@@ -16,23 +16,27 @@ impl<'info> CreatePullCtx<'info> { // TODO: should i make it as trait?
         let iter = &mut accounts.iter();
         Ok(Self {
             payer: next_account_info(iter)?.parse_into()?,
-            pull: next_account_info(iter)?.require_signer()?.for_program(program_id).parse_into()?, // check and then convert
+            pull: next_account_info(iter)?.require_signer()?.bind_owner(program_id).parse_into()?, // check and then convert
             // pull: next_account_info(iter)?.for_program(program_id).parse_into()?.require_signer()?, // not working
             // pull: InitOwnedAccount::parse_from( next_account_info(iter)?.for_program(program_id) )?.require_signer()?, // other option. idk.
             system_program: next_account_info(iter)?.parse_into()?,
         })
     }
+
+    pub fn checks(&self, args: &CreatePullArgs) -> ProgramResult {
+        require!(args.voting_start < args.voting_end, VotingError::InvalidTimeRange);
+        require!(args.voting_end > Clock::get()?.unix_timestamp, VotingError::VotingAlreadyEnded);
+
+        Ok(())
+    }
 }
 
 pub fn create_pull<'a>(program_id: &'a Pubkey, accounts: &'a [AccountInfo<'a>], data: &[u8]) -> ProgramResult {
-    let ctx = CreatePullCtx::parse(program_id, accounts)?;
     let args = CreatePullArgs::parse_from_bytes(data)?;
+    let ctx = CreatePullCtx::parse(program_id, accounts)?;
+    ctx.checks(&args)?;
 
-    require!(args.voting_start < args.voting_end, VotingError::InvalidTimeRange);
-    require!(args.voting_end > Clock::get()?.unix_timestamp, VotingError::VotingAlreadyEnded);
-
-    // todo: create a macro for that task? Something like `create_with_init_and_get`. Or use something like AccountWrappers<T>
-    ctx.pull.create_sdk_account_cpi::<Pull>(&ctx.payer, &ctx.system_program, program_id)?;
+    ctx.pull.create_sdk_account_cpi(&ctx.payer, &ctx.system_program)?;
 
     let mut pull_data = ctx.pull.load_mut()?;
     pull_data.creator = *ctx.payer.key;

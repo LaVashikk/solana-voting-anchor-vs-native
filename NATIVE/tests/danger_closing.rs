@@ -1,131 +1,136 @@
-// mod common;
-// use common::*;
-// use solana_sdk::{message::Message, signer::Signer, transaction::{Transaction, TransactionError}};
+mod common;
+use common::*;
+use dummy_sdk::client::ClientInstruction;
+use native_voter_cheap::instructions::{close_candidate::{self, CloseCandidateArgs}, close_pull::{self, ClosePullArgs}, close_vote::{self, CloseVoteArgs}};
+use solana_sdk::{message::Message, pubkey::Pubkey, signer::Signer, transaction::{Transaction, TransactionError}};
 
-// #[test]
-// fn test_exploit_close_pull_with_fake_creator() {
-//     let (mut svm, real_creator) = init_svm_env("native_voter_cheap");
+#[test]
+fn test_exploit_close_pull_with_fake_creator() {
+    let (mut svm, real_creator) = init_svm_env("native_voter_cheap");
+    set_svm_time(&mut svm, current_time());
 
-//     // Attacker creates their own user account
-//     let attacker = create_user(&mut svm);
+    // Attacker creates their own user account
+    let attacker = create_user(&mut svm);
 
-//     // Real creator initializes the pull
-//     let (pull_pda, _) = create_pull(&mut svm, &real_creator, "Time to close", "Desc", 0);
+    // Real creator initializes the pull
+    let pull_pda = create_pull(&mut svm, &real_creator, "Time to close", "Desc", 0);
 
-//     set_svm_time(&mut svm, current_time() + 100_000);
+    set_svm_time(&mut svm, current_time() + 100_000);
 
-//     // EXPLOIT ATTEMPT: The attacker tries to close the pull but passes THEIR OWN pubkey (todo)
-//     // as the `creator` account. If the contract doesn't check `pull.creator == creator.key()`,
-//     // the attacker will successfully steal the 95% rent refund intended for the real creator.
-//     let ix = ix_close_pull(attacker.pubkey(), pull_pda.clone());
+    // EXPLOIT ATTEMPT: The attacker tries to close the pull passing themselves as creator
+    let res = close_pull_raw(&mut svm, &attacker, pull_pda);
 
-//     let msg = Message::new(&[ix], Some(&attacker.pubkey()));
-//     let tx = Transaction::new(&[&attacker], msg, svm.latest_blockhash());
-//     let res = svm.send_transaction(tx);
+    let err = res.unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("Invalid creator")),
+        "Expected 'Invalid creator' error, but got: {:#?}",
+        err.meta.logs
+    );
+}
 
-//     let err = res.unwrap_err();
+#[test]
+fn test_exploit_close_candidate_mismatched_pull() {
+    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    set_svm_time(&mut svm, current_time());
 
-//     // The transaction MUST fail. Anchor usually handles this via `#[account(has_one = creator)]`
-//     // or seed constraints. We expect a Constraint error.
-//     assert!(
-//         err.meta.logs.iter().any(|l| l.contains("InvalidCreator")),
-//         "The contract allowed a fake creator to close the pull! Logs: {:#?}",
-//         err.meta.logs
-//     );
-// }
+    // Create two completely separate pull accounts
+    let pull_1_pda = create_pull(&mut svm, &creator, "Pull 1", "Desc 1", 0);
+    let pull_2_pda = create_pull(&mut svm, &creator, "Pull 2", "Desc 2", 0);
 
-// #[test]
-// fn test_exploit_close_candidate_mismatched_pull() {
-//     let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    // Create a candidate attached ONLY to Pull 1
+    let candidate_pda = create_candidate(&mut svm, &creator, pull_1_pda, "Candidate 1");
 
-//     // Create two completely separate pull accounts
-//     let (pull_1_pda, _) = create_pull(&mut svm, &creator, "Pull 1", "Desc 1", 0);
-//     let (pull_2_pda, _) = create_pull(&mut svm, &creator, "Pull 2", "Desc 2", 0);
+    // Fast-forward time
+    set_svm_time(&mut svm, current_time() + 100_000);
 
-//     // Create a candidate attached ONLY to Pull 1
-//     let (candidate_pda, _) = create_candidate(&mut svm, &creator, pull_1_pda, "Candidate 1", 0);
+    // EXPLOIT ATTEMPT: Try to close Candidate 1, but passing Pull 2 as the context.
+    let res = close_candidate_raw(&mut svm, &creator, pull_2_pda, candidate_pda);
 
-//     // Fast-forward time
-//     set_svm_time(&mut svm, current_time() + 100_000);
+    let err = res.unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("Invalid pull")),
+        "Expected 'Invalid pull' error, but got: {:#?}",
+        err.meta.logs
+    );
+}
 
-//     // EXPLOIT ATTEMPT: The bot tries to close Candidate 1, but passes Pull 2 as the context.
-//     let ix = ix_close_candidate(creator.pubkey(), pull_2_pda.clone(), candidate_pda.clone());
+#[test]
+fn test_exploit_double_close_candidate() {
+    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    set_svm_time(&mut svm, current_time());
 
-//     let msg = Message::new(&[ix], Some(&creator.pubkey()));
-//     let tx = Transaction::new(&[&creator], msg, svm.latest_blockhash());
-//     let res = svm.send_transaction(tx);
+    let pull_pda = create_pull(&mut svm, &creator, "Pull", "Desc", 0);
+    let candidate_pda = create_candidate(&mut svm, &creator, pull_pda, "Candidate");
 
-//     let err = res.unwrap_err();
+    // Fast-forward time
+    set_svm_time(&mut svm, current_time() + 100_000);
 
-//     // The transaction MUST fail. We expect an Anchor constraint error (seed mismatch or has_one).
-//     assert!(
-//         err.meta.logs.iter().any(|l| l.contains("InvalidPull")),
-//         "Contract allowed closing a candidate using the wrong Pull PDA! Logs: {:#?}",
-//         err.meta.logs
-//     );
-// }
+    // LEGITIMATE ACTION: closes the candidate for the first time.
+    close_candidate(&mut svm, &creator, pull_pda, candidate_pda);
 
-// #[test]
-// fn test_exploit_double_close_candidate() {
-//     let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    // EXPLOIT ATTEMPT: tries to close the EXACT SAME candidate again.
+    svm.expire_blockhash();
+    let res = close_candidate_raw(&mut svm, &creator, pull_pda, candidate_pda);
 
-//     let (pull_pda, _) = create_pull(&mut svm, &creator, "Pull", "Desc", 0);
-//     let (candidate_pda, _) = create_candidate(&mut svm, &creator, pull_pda, "Candidate", 0);
+    let err = res.unwrap_err();
+    // Since the account is closed (owner is now System Program or account deleted),
+    // the program will fail to load it or discriminator check will fail.
+    // In dummy-sdk, bind_owner will fail with IllegalOwner if it's already closed/wiped.
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("owner is not allowed") || l.contains("AccountNotFound")),
+        "Expected error for already closed account, but got: {:#?}",
+        err.meta.logs
+    );
+}
 
-//     // Fast-forward time
-//     set_svm_time(&mut svm, current_time() + 100_000);
+#[test]
+fn test_exploit_double_close_voting() {
+    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    set_svm_time(&mut svm, current_time());
+    let user = create_user(&mut svm);
+    let bot = create_user(&mut svm);
 
-//     // LEGITIMATE ACTION: closes the candidate for the first time.
-//     let ix1 = ix_close_candidate(creator.pubkey(), pull_pda.clone(), candidate_pda.clone());
-//     let msg1 = Message::new(&[ix1], Some(&creator.pubkey()));
-//     let tx1 = Transaction::new(&[&creator], msg1, svm.latest_blockhash());
-//     svm.send_transaction(tx1).unwrap(); // Should succeed
+    let pull_pda = create_pull(&mut svm, &creator, "Hack me", "Desc", 0);
+    let candidate_pda = create_candidate(&mut svm, &creator, pull_pda.clone(), "Target");
 
-//     // EXPLOIT ATTEMPT: tries to close the EXACT SAME candidate again.
-//     let ix2 = ix_close_candidate(creator.pubkey(), pull_pda.clone(), candidate_pda.clone());
-//     let msg2 = Message::new(&[ix2], Some(&creator.pubkey()));
-//     let tx2 = Transaction::new(&[&creator], msg2, svm.latest_blockhash());
-//     let res = svm.send_transaction(tx2);
+    // Start voting and vote for the candidate
+    set_svm_time(&mut svm, current_time() + 100);
+    let voter_pda = create_vote(&mut svm, &user, pull_pda.clone(), candidate_pda.clone());
 
-//     let err = res.unwrap_err();
-//     require_eq!(err.err, TransactionError::AlreadyProcessed);
-// }
+    // Now fast-forward time to close the voting
+    set_svm_time(&mut svm, current_time() + 100_000);
 
-// #[test]
-// fn test_exploit_double_close_voting() {
-//     let (mut svm, creator) = init_svm_env("native_voter_cheap");
-//     let user = create_user(&mut svm);
-//     let bot = create_user(&mut svm);
+    let bot_balance_before = svm.get_balance(&bot.pubkey()).unwrap();
 
-//     let (pull_pda, _) = create_pull(&mut svm, &creator, "Hack me", "Desc", 0);
-//     let (candidate_pda, _) = create_candidate(&mut svm, &creator, pull_pda.clone(), "Target", 0);
+    // HACK ATTEMPT: Bot tries to close the voting twice in ONE transaction.
+    let accounts = close_vote::client::CloseVoteAccounts {
+        voter: user.pubkey(),
+        bot: bot.pubkey(),
+        voter_tracker: voter_pda,
+    };
+    let ix = CloseVoteArgs.build_ix(PROGRAM_ID, accounts);
 
-//     // Start voting and vote for the candidate
-//     set_svm_time(&mut svm, current_time() + 100);
-//     let voter_pda = voting(&mut svm, &user, pull_pda.clone(), candidate_pda.clone());
+    // put both instructions in one Message
+    let msg = Message::new(&[ix.clone(), ix], Some(&bot.pubkey()));
+    let tx = Transaction::new(&[&bot], msg, svm.latest_blockhash());
 
-//     // Now fast-forward time to close the voting
-//     set_svm_time(&mut svm, current_time() + 100_000);
+    // Try to execute
+    let res = svm.send_transaction(tx);
 
-//     let bot_balance_before = svm.get_balance(&bot.pubkey()).unwrap();
+    // The transaction MUST fail!
+    assert!(res.is_err(), "VULNERABILITY: Double close succeeded!");
+    let err = res.unwrap_err();
 
-//     // HACK ATTEMPT: Bot tries to close the voting twice in a row.
-//     let ix1 = ix_close_voting(bot.pubkey(), creator.pubkey(), voter_pda.clone());
-//     let ix2 = ix_close_voting(bot.pubkey(), creator.pubkey(), voter_pda.clone());
+    // The second instruction should fail because the account was closed by the first one.
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("owner is not allowed") || l.contains("AccountNotFound")),
+        "Expected error for already closed account in second instruction, but got: {:#?}",
+        err.meta.logs
+    );
 
-//     // put both instructions in one Message
-//     let msg = Message::new(&[ix1, ix2], Some(&bot.pubkey()));
-//     let tx = Transaction::new(&[&bot], msg, svm.latest_blockhash());
-
-//     // Try to execute
-//     let res = svm.send_transaction(tx);
-
-//     // The transaction MUST fail! If it succeeds, the contract is vulnerable.
-//     assert!(res.is_err(), "VULNERABILITY: Double close succeeded!");
-
-//     // Since the transaction is atomic and rolled back entirely, the bot's balance should not change
-//     let bot_balance_after = svm.get_balance(&bot.pubkey()).unwrap();
-//     require_eq!(
-//         bot_balance_before, bot_balance_after + 5000,
-//     );
-// }
+    // Since the transaction is atomic and rolled back entirely, the bot's balance should not change (except fee)
+    let bot_balance_after = svm.get_balance(&bot.pubkey()).unwrap();
+    assert_eq!(
+        bot_balance_before, bot_balance_after + 5000,
+    );
+}
