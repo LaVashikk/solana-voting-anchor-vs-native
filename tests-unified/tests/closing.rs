@@ -1,13 +1,10 @@
 mod common;
 use common::*;
-use dummy_sdk::accounts::pod::PodAccountData;
-use litesvm::LiteSVM;
-use native_voter_cheap::state::pull::Pull;
-use solana_sdk::{message::Message, signer::Signer, transaction::Transaction};
+use solana_sdk::signer::Signer;
 
 #[test]
 fn test_close_pull() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
 
     let creator_balance_before = svm.get_balance(&creator.pubkey()).unwrap();
@@ -27,7 +24,7 @@ fn test_close_pull() {
 
 #[test]
 fn test_close_not_ended_pull() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     set_svm_time(&mut svm, current_time());
 
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
@@ -37,7 +34,7 @@ fn test_close_not_ended_pull() {
 
     let err = res.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Candidates not closed")), // TODO: for anchor, it's `CandidatesNotClosed`, but here - it text-based
+        err.meta.logs.iter().any(|l| l.contains("Candidates not closed") || l.contains("CandidatesNotClosed")),
         "Expected log 'CandidatesNotClosed', but got logs: {:#?}",
         err.meta.logs
     );
@@ -45,22 +42,21 @@ fn test_close_not_ended_pull() {
 
 #[test]
 fn test_close_invalid_pull() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
 
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
     let err = close_pull_raw(&mut svm, &creator, pull_pda.clone()).unwrap_err();
 
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Voting not ended yet")), // TODO: for anchor, it's `VotingNotEnded`, but here - it text-based
+        err.meta.logs.iter().any(|l| l.contains("Voting not ended yet") || l.contains("VotingNotEnded")),
         "Expected log 'VotingNotEnded', but got logs: {:#?}",
         err.meta.logs
     );
-
 }
 
 #[test]
 fn test_close_candidate() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
 
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
     let candidates = [
@@ -69,8 +65,7 @@ fn test_close_candidate() {
     ];
 
     let get_candidate_count = |svm: &LiteSVM| -> u64 {
-        let account = svm.get_account(&pull_pda).unwrap();
-        let data = Pull::try_from_bytes(account.data.as_slice()).unwrap();
+        let data = read_data::<Pull>(svm, &pull_pda);
         data.candidate_count
     };
 
@@ -78,7 +73,6 @@ fn test_close_candidate() {
     set_svm_time(&mut svm, current_time() + 100_000);
 
     let creator_balance_before = svm.get_balance(&creator.pubkey()).unwrap();
-    // dbg!(native_get_all_candidate(&svm, &pull_pda));
 
     for (i, candidate) in candidates.iter().rev().enumerate() {
         close_candidate(&mut svm, &creator, pull_pda, candidate.clone());
@@ -89,7 +83,6 @@ fn test_close_candidate() {
     }
 
     assert_eq!(get_candidate_count(&svm), 0);
-    // dbg!(native_get_all_candidate(&svm, &pull_pda));
 
     // Creator should receive their share
     let creator_balance_after = svm.get_balance(&creator.pubkey()).unwrap();
@@ -98,7 +91,7 @@ fn test_close_candidate() {
 
 #[test]
 fn test_close_voting_tracker() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     // Voting started
     set_svm_time(&mut svm, current_time() + 100);
 
@@ -117,7 +110,7 @@ fn test_close_voting_tracker() {
 
 #[test]
 fn test_close_integrate() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
 
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
     let candidates = [
@@ -126,8 +119,7 @@ fn test_close_integrate() {
     ];
 
     let get_candidate_count = |svm: &LiteSVM| -> u64 {
-        let account = svm.get_account(&pull_pda).unwrap();
-        let data = Pull::try_from_bytes(account.data.as_slice()).unwrap();
+        let data = read_data::<Pull>(svm, &pull_pda);
         data.candidate_count
     };
 
@@ -136,7 +128,7 @@ fn test_close_integrate() {
 
     let err = close_pull_raw(&mut svm, &creator, pull_pda.clone()).unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Candidates not closed")), // TODO: for anchor, it's `CandidatesNotClosed`, but here - it text-based
+        err.meta.logs.iter().any(|l| l.contains("Candidates not closed") || l.contains("CandidatesNotClosed")),
         "Expected log 'CandidatesNotClosed', but got logs: {:#?}",
         err.meta.logs
     );

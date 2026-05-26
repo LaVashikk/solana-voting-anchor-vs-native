@@ -1,12 +1,9 @@
 mod common;
 use common::*;
-use dummy_sdk::client::ClientInstruction;
-use native_voter_cheap::instructions::{close_candidate::{self, CloseCandidateArgs}, close_pull::{self, ClosePullArgs}, close_vote::{self, CloseVoteArgs}};
-use solana_sdk::{message::Message, pubkey::Pubkey, signer::Signer, transaction::{Transaction, TransactionError}};
 
 #[test]
 fn test_exploit_close_pull_with_fake_creator() {
-    let (mut svm, real_creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, real_creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     set_svm_time(&mut svm, current_time());
 
     // Attacker creates their own user account
@@ -22,7 +19,7 @@ fn test_exploit_close_pull_with_fake_creator() {
 
     let err = res.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Invalid creator")),
+        err.meta.logs.iter().any(|l| l.contains("Invalid creator") || l.contains("InvalidCreator")),
         "Expected 'Invalid creator' error, but got: {:#?}",
         err.meta.logs
     );
@@ -30,7 +27,7 @@ fn test_exploit_close_pull_with_fake_creator() {
 
 #[test]
 fn test_exploit_close_candidate_mismatched_pull() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     set_svm_time(&mut svm, current_time());
 
     // Create two completely separate pull accounts
@@ -48,7 +45,7 @@ fn test_exploit_close_candidate_mismatched_pull() {
 
     let err = res.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Invalid pull")),
+        err.meta.logs.iter().any(|l| l.contains("Invalid pull") || l.contains("InvalidPull")),
         "Expected 'Invalid pull' error, but got: {:#?}",
         err.meta.logs
     );
@@ -56,7 +53,7 @@ fn test_exploit_close_candidate_mismatched_pull() {
 
 #[test]
 fn test_exploit_double_close_candidate() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     set_svm_time(&mut svm, current_time());
 
     let pull_pda = create_pull(&mut svm, &creator, "Pull", "Desc", 0);
@@ -73,11 +70,13 @@ fn test_exploit_double_close_candidate() {
     let res = close_candidate_raw(&mut svm, &creator, pull_pda, candidate_pda);
 
     let err = res.unwrap_err();
-    // Since the account is closed (owner is now System Program or account deleted),
-    // the program will fail to load it or discriminator check will fail.
-    // In dummy-sdk, bind_owner will fail with IllegalOwner if it's already closed/wiped.
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("owner is not allowed") || l.contains("AccountNotFound")),
+        err.meta.logs.iter().any(|l| 
+            l.contains("owner is not allowed") || 
+            l.contains("AccountNotFound") || 
+            l.contains("IllegalOwner") ||
+            l.contains("AccountNotInitialized")
+        ),
         "Expected error for already closed account, but got: {:#?}",
         err.meta.logs
     );
@@ -85,7 +84,7 @@ fn test_exploit_double_close_candidate() {
 
 #[test]
 fn test_exploit_double_close_voting() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     set_svm_time(&mut svm, current_time());
     let user = create_user(&mut svm);
     let bot = create_user(&mut svm);
@@ -102,13 +101,7 @@ fn test_exploit_double_close_voting() {
 
     let bot_balance_before = svm.get_balance(&bot.pubkey()).unwrap();
 
-    // HACK ATTEMPT: Bot tries to close the voting twice in ONE transaction.
-    let accounts = close_vote::client::CloseVoteAccounts {
-        voter: user.pubkey(),
-        bot: bot.pubkey(),
-        voter_tracker: voter_pda,
-    };
-    let ix = CloseVoteArgs.build_ix(PROGRAM_ID, accounts);
+    let ix = ix_close_vote(bot.pubkey(), user.pubkey(), voter_pda);
 
     // put both instructions in one Message
     let msg = Message::new(&[ix.clone(), ix], Some(&bot.pubkey()));
@@ -123,7 +116,12 @@ fn test_exploit_double_close_voting() {
 
     // The second instruction should fail because the account was closed by the first one.
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("owner is not allowed") || l.contains("AccountNotFound")),
+        err.meta.logs.iter().any(|l| 
+            l.contains("owner is not allowed") || 
+            l.contains("AccountNotFound") || 
+            l.contains("IllegalOwner") ||
+            l.contains("AccountNotInitialized")
+        ),
         "Expected error for already closed account in second instruction, but got: {:#?}",
         err.meta.logs
     );

@@ -1,10 +1,9 @@
 mod common;
 use common::*;
-use solana_sdk::signature::Keypair;
 
 #[test]
 fn test_cross_poll_voting() {
-    let (mut svm, user) = init_svm_env("native_voter_cheap");
+    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
 
     let pull_1 = create_pull(&mut svm, &user, "Poll 1", "Desc 1", 0);
     let pull_2 = create_pull(&mut svm, &user, "Poll 2", "Desc 2", 0);
@@ -17,7 +16,7 @@ fn test_cross_poll_voting() {
 
     let err = res.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Invalid pull")),
+        err.meta.logs.iter().any(|l| l.contains("Invalid pull") || l.contains("InvalidPull")),
         "Expected log 'Invalid pull', but got logs: {:#?}",
         err.meta.logs
     );
@@ -25,18 +24,17 @@ fn test_cross_poll_voting() {
 
 #[test]
 fn test_create_candidate_invalid_creator() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     let other_user = create_user(&mut svm);
 
     let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
 
     // Try to create candidate by non-creator
-    let candidate_keypair = Keypair::new();
-    let res = create_candidate_raw(&mut svm, &other_user, pull_pda, &candidate_keypair, "Rust");
+    let res = create_candidate_raw(&mut svm, &other_user, pull_pda, "Rust");
 
-    let err = res.unwrap_err();
+    let err = res.1.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Invalid creator")),
+        err.meta.logs.iter().any(|l| l.contains("Invalid creator") || l.contains("InvalidCreator")),
         "Expected log 'Invalid creator', but got logs: {:#?}",
         err.meta.logs
     );
@@ -44,7 +42,7 @@ fn test_create_candidate_invalid_creator() {
 
 #[test]
 fn test_voting_after_end() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     let user = create_user(&mut svm);
 
     let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
@@ -57,7 +55,7 @@ fn test_voting_after_end() {
 
     let err = res.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Voting Already Ended")),
+        err.meta.logs.iter().any(|l| l.contains("Voting Already Ended") || l.contains("VotingAlreadyEnded")),
         "Expected log 'Voting Already Ended', but got logs: {:#?}",
         err.meta.logs
     );
@@ -65,12 +63,8 @@ fn test_voting_after_end() {
 
 #[test]
 fn test_voting_before_start() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     let user = create_user(&mut svm);
-
-    // I need a way to create a pull with start time in future.
-    // Let's manually build the transaction for create_pull or update create_pull helper.
-    // For now, I'll just set svm time to something BEFORE the pull start time.
 
     let now = current_time();
     let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
@@ -83,7 +77,7 @@ fn test_voting_before_start() {
 
     let err = res.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("Not started")),
+        err.meta.logs.iter().any(|l| l.contains("Not started") || l.contains("NotStarted")),
         "Expected log 'Not started', but got logs: {:#?}",
         err.meta.logs
     );
@@ -91,7 +85,7 @@ fn test_voting_before_start() {
 
 #[test]
 fn test_duplicate_vote() {
-    let (mut svm, creator) = init_svm_env("native_voter_cheap");
+    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
     let user = create_user(&mut svm);
 
     let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
@@ -108,7 +102,7 @@ fn test_duplicate_vote() {
 
     let err = res.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| l.contains("already initialized")),
+        err.meta.logs.iter().any(|l| l.contains("already initialized") || l.contains("already in use") || l.contains("AlreadyInUse")),
         "Expected log about account already in use, but got logs: {:#?}",
         err.meta.logs
     );
