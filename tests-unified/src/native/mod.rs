@@ -10,7 +10,7 @@ use native_voter_cheap::instructions::{
     close_candidate::{self, CloseCandidateArgs},
     close_vote::{self, CloseVoteArgs},
 };
-use crate::common::*;
+use crate::*;
 
 // --- Unified State Mappings ---
 
@@ -179,19 +179,22 @@ pub fn close_pull_raw(svm: &mut LiteSVM, creator: &Keypair, pull: Pubkey) -> Tra
 
 pub fn create_pull(svm: &mut LiteSVM, user: &Keypair, title: &str, description: &str, vote_price: u64) -> Pubkey {
     let (pubkey, res) = create_pull_raw(svm, user, title, description, vote_price);
-    res.unwrap();
+    let x = res.map_err(|e| {eprintln!("LOGS: {:#?}", e.meta.logs); e}).unwrap();
+    println!("CREATE PULL LOGS: {:#?}", x.logs);
     pubkey
 }
 
 pub fn create_candidate(svm: &mut LiteSVM, user: &Keypair, pull: Pubkey, name: &str) -> Pubkey {
     let (pubkey, res) = create_candidate_raw(svm, user, pull, name);
-    res.unwrap();
+    let x = res.map_err(|e| {eprintln!("LOGS: {:#?}", e.meta.logs); e}).unwrap();
+    println!("CREATE CANDIDATES LOGS: {:#?}", x.logs);
     pubkey
 }
 
 pub fn create_vote(svm: &mut LiteSVM, user: &Keypair, pull: Pubkey, candidate: Pubkey) -> Pubkey {
     let (voter_pda, _) = Pubkey::find_program_address(&NativeVoter::get_seeds(&pull, &user.pubkey()), &PROGRAM_ID);
-    create_vote_raw(svm, user, pull, candidate).unwrap();
+    let x = create_vote_raw(svm, user, pull, candidate).map_err(|e| {eprintln!("LOGS: {:#?}", e.meta.logs); e}).unwrap();
+    println!("VOTED: {:#?}", x.logs);
     voter_pda
 }
 

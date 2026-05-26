@@ -5,7 +5,10 @@ edition = "2021"
 
 [dependencies]
 solana-sdk = "3.0"
-litesvm = "0.11.0"
+litesvm = "0.12.0"
+# mollusk-svm = "0.12.0"
+# mollusk-svm-bencher = "0.12.0"
+
 bytemuck = { version = "1.25.0", features = ["derive"] }
 anyhow = "1.0"
 thiserror = "2.0"
@@ -14,7 +17,7 @@ thiserror = "2.0"
 # anchor:
 anchor-lang = { version = "1.0", optional = true }
 anchor_vote = { path = "../ANCHOR", optional = true }
-anchor_zero_copy = { path = "../ANCHOR_ZERO_COPY", optional = true }
+zero_copy_anchor_vote = { path = "../ANCHOR_ZERO_COPY", optional = true }
 
 # native:
 native_voter_cheap = { path = "../NATIVE", optional = true }
@@ -22,9 +25,9 @@ dummy-sdk = { path = "../NATIVE/dummy-sdk", optional = true }
 # --
 
 [features]
-# default = ["anchor"]
+# default = ["native"]
 anchor = ["dep:anchor_vote", "dep:anchor-lang"]
-anchor-zero-copy = ["dep:anchor_zero_copy", "dep:anchor-lang", "dep:dummy-sdk"]
+anchor-zero-copy = ["dep:zero_copy_anchor_vote", "dep:anchor-lang", "dep:dummy-sdk"]
 native = ["dep:native_voter_cheap", "dep:dummy-sdk"]
 
 [[test]]
@@ -42,3 +45,7 @@ path = "tests/danger_basic.rs"
 [[test]]
 name = "danger_closing"
 path = "tests/danger_closing.rs"
+
+[[test]]
+name = "benchmark"
+path = "benchmark/versus.rs"

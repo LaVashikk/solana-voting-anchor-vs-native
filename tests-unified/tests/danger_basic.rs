@@ -1,9 +1,8 @@
-mod common;
-use common::*;
+use tests_unified::*;
 
 #[test]
 fn test_cross_poll_voting() {
-    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, user) = init_svm_env(program_name());
 
     let pull_1 = create_pull(&mut svm, &user, "Poll 1", "Desc 1", 0);
     let pull_2 = create_pull(&mut svm, &user, "Poll 2", "Desc 2", 0);
@@ -24,7 +23,7 @@ fn test_cross_poll_voting() {
 
 #[test]
 fn test_create_candidate_invalid_creator() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     let other_user = create_user(&mut svm);
 
     let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
@@ -42,7 +41,7 @@ fn test_create_candidate_invalid_creator() {
 
 #[test]
 fn test_voting_after_end() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     let user = create_user(&mut svm);
 
     let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);
@@ -63,7 +62,7 @@ fn test_voting_after_end() {
 
 #[test]
 fn test_voting_before_start() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     let user = create_user(&mut svm);
 
     let now = current_time();
@@ -85,7 +84,7 @@ fn test_voting_before_start() {
 
 #[test]
 fn test_duplicate_vote() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     let user = create_user(&mut svm);
 
     let pull_pda = create_pull(&mut svm, &creator, "Best language", "Test", 0);

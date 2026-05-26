@@ -1,7 +1,7 @@
 use solana_sdk::{message::Message, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 use litesvm::{LiteSVM, types::TransactionResult};
 use anchor_lang::{InstructionData, ToAccountMetas, AccountDeserialize};
-use crate::common::*;
+use crate::*;
 
 // --- Unified State Mappings ---
 
@@ -78,8 +78,6 @@ impl UnifiedState for Voter {
 }
 
 // --- Caller Functions ---
-
-const SYSTEM_PROGRAM_ID: Pubkey = solana_sdk::pubkey!("11111111111111111111111111111111");
 
 pub fn create_pull_raw(svm: &mut LiteSVM, user: &Keypair, title: &str, description: &str, vote_price: u64) -> (Pubkey, TransactionResult) {
     let (pull_pda, _) = Pubkey::find_program_address(&[b"pull", title.as_bytes()], &PROGRAM_ID);
@@ -210,19 +208,22 @@ pub fn close_pull_raw(svm: &mut LiteSVM, creator: &Keypair, pull: Pubkey) -> Tra
 
 pub fn create_pull(svm: &mut LiteSVM, user: &Keypair, title: &str, description: &str, vote_price: u64) -> Pubkey {
     let (pubkey, res) = create_pull_raw(svm, user, title, description, vote_price);
-    res.unwrap();
+    let x = res.map_err(|e| {eprintln!("LOGS: {:#?}", e.meta.logs); e}).unwrap();
+    println!("CREATE PULL LOGS: {:#?}", x.logs);
     pubkey
 }
 
 pub fn create_candidate(svm: &mut LiteSVM, user: &Keypair, pull: Pubkey, name: &str) -> Pubkey {
     let (pubkey, res) = create_candidate_raw(svm, user, pull, name);
-    res.unwrap();
+    let x = res.map_err(|e| {eprintln!("LOGS: {:#?}", e.meta.logs); e}).unwrap();
+    println!("CREATE CANDIDATES LOGS: {:#?}", x.logs);
     pubkey
 }
 
 pub fn create_vote(svm: &mut LiteSVM, user: &Keypair, pull: Pubkey, candidate: Pubkey) -> Pubkey {
     let (voter_pda, _) = Pubkey::find_program_address(&[b"voter", pull.as_ref(), user.pubkey().as_ref()], &PROGRAM_ID);
-    create_vote_raw(svm, user, pull, candidate).unwrap();
+    let x = create_vote_raw(svm, user, pull, candidate).map_err(|e| {eprintln!("LOGS: {:#?}", e.meta.logs); e}).unwrap();
+    println!("VOTED: {:#?}", x.logs);
     voter_pda
 }
 

@@ -1,11 +1,9 @@
 use solana_sdk::{native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer};
-
-mod common;
-use common::*;
+use tests_unified::*;
 
 #[test]
 fn create_account_test() {
-    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, user) = init_svm_env(program_name());
     let pull_pubkey = create_pull(&mut svm, &user, "Test Pull", "This is another test pull", 0);
 
     let data = read_data::<Pull>(&svm, &pull_pubkey);
@@ -17,7 +15,7 @@ fn create_account_test() {
 
 #[test]
 fn create_candidate_test() {
-    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, user) = init_svm_env(program_name());
     let pull_key = create_pull(&mut svm, &user, "Test Pull", "This is a test pull", 0);
 
     let candidate_key = create_candidate(&mut svm, &user, pull_key.clone(), "Candidate 1");
@@ -35,7 +33,7 @@ fn create_candidate_test() {
 
 #[test]
 fn create_couple_candidaete_test() {
-    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, user) = init_svm_env(program_name());
     let pull_pda = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", 0);
     let candidate_1 = create_candidate(&mut svm, &user, pull_pda.clone(), "Rust");
     let candidate_2 = create_candidate(&mut svm, &user, pull_pda.clone(), "Python");
@@ -61,7 +59,7 @@ fn create_couple_candidaete_test() {
 
     let pull_data = read_data::<Pull>(&svm, &pull_pda);
     assert_eq!(pull_data.candidate_count, 4);
-    
+
     #[cfg(feature = "native")]
     assert_eq!(pull_data.last_candidate, PodOption::some(candidate_4));
 }
@@ -71,14 +69,14 @@ fn create_couple_candidaete_test() {
 fn create_candidate_from_hacker_test() {
     let hacker = Keypair::new();
 
-    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, user) = init_svm_env(program_name());
     let pull = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", 0);
     let _ = create_candidate(&mut svm, &hacker, pull.clone(), "Rust"); // not allowed!
 }
 
 #[test]
 fn voting_test() {
-    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, user) = init_svm_env(program_name());
     set_svm_time(&mut svm, current_time() + 100);
 
     let user2 = create_user(&mut svm);
@@ -111,7 +109,7 @@ fn voting_test() {
 
 #[test]
 fn voting_with_price_test() {
-    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, user) = init_svm_env(program_name());
 
     let vote_price = LAMPORTS_PER_SOL / 2;
     let pull = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", vote_price);
@@ -130,7 +128,7 @@ fn voting_with_price_test() {
 
 #[test]
 fn double_voting_test() {
-    let (mut svm, user) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, user) = init_svm_env(program_name());
     set_svm_time(&mut svm, current_time() + 100);
 
     let pull = create_pull(&mut svm, &user, "Best programming language", "This is a test pull", 0);

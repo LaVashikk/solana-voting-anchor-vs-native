@@ -1,9 +1,8 @@
-mod common;
-use common::*;
+use tests_unified::*;
 
 #[test]
 fn test_exploit_close_pull_with_fake_creator() {
-    let (mut svm, real_creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, real_creator) = init_svm_env(program_name());
     set_svm_time(&mut svm, current_time());
 
     // Attacker creates their own user account
@@ -27,7 +26,7 @@ fn test_exploit_close_pull_with_fake_creator() {
 
 #[test]
 fn test_exploit_close_candidate_mismatched_pull() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     set_svm_time(&mut svm, current_time());
 
     // Create two completely separate pull accounts
@@ -53,7 +52,7 @@ fn test_exploit_close_candidate_mismatched_pull() {
 
 #[test]
 fn test_exploit_double_close_candidate() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     set_svm_time(&mut svm, current_time());
 
     let pull_pda = create_pull(&mut svm, &creator, "Pull", "Desc", 0);
@@ -71,11 +70,12 @@ fn test_exploit_double_close_candidate() {
 
     let err = res.unwrap_err();
     assert!(
-        err.meta.logs.iter().any(|l| 
-            l.contains("owner is not allowed") || 
-            l.contains("AccountNotFound") || 
+        err.meta.logs.iter().any(|l|
+            l.contains("owned by a different program") ||
+            l.contains("already initialized") ||
+            l.contains("AccountNotFound") ||
             l.contains("IllegalOwner") ||
-            l.contains("AccountNotInitialized")
+            l.contains("owner is not allowed")
         ),
         "Expected error for already closed account, but got: {:#?}",
         err.meta.logs
@@ -84,7 +84,7 @@ fn test_exploit_double_close_candidate() {
 
 #[test]
 fn test_exploit_double_close_voting() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     set_svm_time(&mut svm, current_time());
     let user = create_user(&mut svm);
     let bot = create_user(&mut svm);
@@ -116,11 +116,12 @@ fn test_exploit_double_close_voting() {
 
     // The second instruction should fail because the account was closed by the first one.
     assert!(
-        err.meta.logs.iter().any(|l| 
-            l.contains("owner is not allowed") || 
-            l.contains("AccountNotFound") || 
+        err.meta.logs.iter().any(|l|
+            l.contains("owned by a different program") ||
+            l.contains("already initialized.") ||
+            l.contains("AccountNotFound") ||
             l.contains("IllegalOwner") ||
-            l.contains("AccountNotInitialized")
+            l.contains("owner is not allowed")
         ),
         "Expected error for already closed account in second instruction, but got: {:#?}",
         err.meta.logs

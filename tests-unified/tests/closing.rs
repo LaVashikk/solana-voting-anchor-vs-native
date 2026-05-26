@@ -1,10 +1,9 @@
-mod common;
-use common::*;
 use solana_sdk::signer::Signer;
+use tests_unified::*;
 
 #[test]
 fn test_close_pull() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
 
     let creator_balance_before = svm.get_balance(&creator.pubkey()).unwrap();
@@ -24,7 +23,7 @@ fn test_close_pull() {
 
 #[test]
 fn test_close_not_ended_pull() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     set_svm_time(&mut svm, current_time());
 
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
@@ -42,7 +41,7 @@ fn test_close_not_ended_pull() {
 
 #[test]
 fn test_close_invalid_pull() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
 
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
     let err = close_pull_raw(&mut svm, &creator, pull_pda.clone()).unwrap_err();
@@ -56,7 +55,7 @@ fn test_close_invalid_pull() {
 
 #[test]
 fn test_close_candidate() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
 
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
     let candidates = [
@@ -91,7 +90,7 @@ fn test_close_candidate() {
 
 #[test]
 fn test_close_voting_tracker() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
     // Voting started
     set_svm_time(&mut svm, current_time() + 100);
 
@@ -110,7 +109,7 @@ fn test_close_voting_tracker() {
 
 #[test]
 fn test_close_integrate() {
-    let (mut svm, creator) = init_svm_env(if cfg!(feature = "anchor") { "anchor_vote" } else { "native_voter_cheap" });
+    let (mut svm, creator) = init_svm_env(program_name());
 
     let pull_pda = create_pull(&mut svm, &creator, "Time to close", "Desc", 0);
     let candidates = [

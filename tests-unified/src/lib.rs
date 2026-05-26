@@ -12,6 +12,14 @@ pub use litesvm::LiteSVM;
 use std::{env, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
 
 pub const PROGRAM_ID: Pubkey = solana_sdk::pubkey!("9AvUNHjxscdkiKQ8tUn12QCMXtcnbR9BVGq3ULNzFMRi");
+pub const SYSTEM_PROGRAM_ID: Pubkey = solana_sdk::pubkey!("11111111111111111111111111111111");
+
+#[cfg(not(any(
+    feature = "anchor",
+    feature = "anchor-zero-copy",
+    feature = "native"
+)))]
+compile_error!("At least one of the following features must be enabled: `anchor`, `anchor-zero-copy`, or `native`.");
 
 pub fn current_time() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64
@@ -25,10 +33,18 @@ pub fn create_user(svm: &mut LiteSVM) -> Keypair {
     user
 }
 
-pub fn init_svm_env(program: &str) -> (LiteSVM, Keypair) {
-    let mut svm = LiteSVM::new();
+pub const fn program_name() -> &'static str {
+    if cfg!(feature = "anchor") {
+        "anchor_vote"
+    } else if cfg!(feature = "anchor-zero-copy") {
+        "zero_copy_anchor_vote"
+    } else {
+        "native_voter_cheap"
+    }
+}
 
-    let target_path = env::var("TARGET_PATH").ok()
+pub fn get_target_path() -> PathBuf {
+    env::var("TARGET_PATH").ok()
         .map(PathBuf::from)
         .or_else(|| {
             env::current_dir()
@@ -38,12 +54,22 @@ pub fn init_svm_env(program: &str) -> (LiteSVM, Keypair) {
         })
         .unwrap_or_else(|| {
              PathBuf::from("target/deploy")
-        });
+        })
 
-    let program_path = target_path.join(program).with_extension("so");
+    // env::home_dir().unwrap().join(".cargo").join("target").join("deploy") // todo: only for local testing
+}
+pub fn get_program_path(program: &str) -> PathBuf {
+    let target_path = get_target_path();
+    target_path.join(program).with_extension("so")
+}
 
+pub fn init_svm_env(program: &str) -> (LiteSVM, Keypair) {
+    let mut svm = LiteSVM::new();
+
+    let program_path = get_program_path(program);
     let program_bytes = std::fs::read(&program_path)
         .unwrap_or_else(|_| panic!("Failed to read program at {}. Did you run cargo build-sbf?", program_path.display()));
+
 
     svm.add_program(PROGRAM_ID, &program_bytes).unwrap();
 

@@ -325,15 +325,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anchor_zero_copy"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "bytemuck",
- "dummy-sdk",
-]
-
-[[package]]
 name = "ansi_term"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1640,9 +1631,9 @@ dependencies = [
 
 [[package]]
 name = "litesvm"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "347d8c652d592c618ac996f2ab21f8c0b0f2da3fbbca227a6887ee61bb75f2de"
+checksum = "236efc1fc49db2af581f221faea4bbc1088dd72d9aa381461eeefef14d48ea1b"
 dependencies = [
  "agave-feature-set",
  "agave-reserved-account-keys",
@@ -1692,7 +1683,7 @@ dependencies = [
  "solana-svm-log-collector",
  "solana-svm-timings",
  "solana-svm-transaction",
- "solana-system-interface 2.0.0",
+ "solana-system-interface 3.2.0",
  "solana-system-program",
  "solana-sysvar 3.1.1",
  "solana-sysvar-id",
@@ -4119,7 +4110,6 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor_vote",
- "anchor_zero_copy",
  "anyhow",
  "bytemuck",
  "dummy-sdk",
@@ -4127,6 +4117,7 @@ dependencies = [
  "native_voter_cheap",
  "solana-sdk",
  "thiserror 2.0.18",
+ "zero_copy_anchor_vote",
 ]
 
 [[package]]
@@ -4406,6 +4397,15 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+
+[[package]]
+name = "zero_copy_anchor_vote"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "bytemuck",
+ "dummy-sdk",
+]
 
 [[package]]
 name = "zerocopy"
